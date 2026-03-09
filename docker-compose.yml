@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - LM_STUDIO_BASE_URL=${LM_STUDIO_BASE_URL}
+      - LM_STUDIO_API_KEY=${LM_STUDIO_API_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL}
+      - CLOUD_LLM_MODEL=${CLOUD_LLM_MODEL}
+      - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL}
+      - CLOUD_EMBEDDING_MODEL=${CLOUD_EMBEDDING_MODEL}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: ankane/pgvector:latest
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

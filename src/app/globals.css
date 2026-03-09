@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom Prose Styles for Chat Tables */
+.prose {
+  overflow-x: auto;
+  width: 100% !important;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.prose::-webkit-scrollbar {
+  height: 6px;
+}
+
+.prose::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prose::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
+}
+
+.prose table {
+  width: 100%;
+  min-width: 800px; /* Increased to prevent squeezing */
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.5rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  table-layout: auto;
+}
+
+.prose thead {
+  background-color: #f8fafc;
+}
+
+.prose th {
+  text-align: left;
+  padding: 0.875rem 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+  color: #475569;
+  border-bottom: 2px solid #f1f5f9;
+  white-space: nowrap; /* Prevent headers from wrapping */
+}
+
+.prose td {
+  padding: 1rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+/* Prevent sensitive columns from wrapping or squeezing too much */
+.prose td:first-child,
+.prose td:nth-child(2),
+.prose td:nth-child(3),
+.prose td:nth-child(4),
+.prose td:nth-child(5) {
+  white-space: nowrap;
+}
+
+/* Allow the "TITLE" or detail columns to wrap but maintain minimum width */
+.prose td:nth-child(2) {
+  white-space: normal;
+  min-width: 200px;
+  max-width: 350px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.prose tr:nth-child(even) {
+  background-color: #fbfcfe;
+}
+
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.prose tr:last-child td {
+  border-bottom: none;
+}
+
+.prose tr:hover {
+  background-color: #f1f5f9;
+}

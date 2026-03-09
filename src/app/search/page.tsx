@@ -1,0 +1,427 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import ChartRenderer from '@/components/ChartRenderer';
+import DiagnosticFlowchart from "@/components/DiagnosticFlowchart";
+import ChatMessage, { Message } from '@/components/ChatMessage';
+import { PARAMETERS } from '@/config/parameters';
+
+type Conversation = {
+  id: string;
+  title: string;
+  updatedAt: string;
+};
+
+export default function SearchPage() {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const router = useRouter();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const suggestionRef = useRef<HTMLDivElement>(null);
+
+  // Fetch all conversations on mount
+  useEffect(() => {
+    fetchConversations();
+  }, []);
+
+  // Fetch messages when a conversation is selected
+  useEffect(() => {
+    if (currentConversationId) {
+      fetchMessages(currentConversationId);
+    } else {
+      setMessages([]);
+    }
+  }, [currentConversationId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Handle outside click for suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounced search for suggestions
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (query.length >= 2 && !loading) {
+        try {
+          const res = await fetch(`/api/pathogens/search?q=${encodeURIComponent(query)}`);
+          const data = await res.json();
+          if (data.suggestions) {
+            setSuggestions(data.suggestions);
+            setShowSuggestions(data.suggestions.length > 0);
+          }
+        } catch (err) {
+          console.error('Failed to fetch suggestions:', err);
+        }
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch('/api/conversations', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.conversations) {
+        setConversations(data.conversations);
+      }
+    } catch (err) {
+      console.error('Failed to fetch conversations:', err);
+    }
+  };
+
+  const fetchMessages = async (id: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${id}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.conversation) {
+        const uiMessages = data.conversation.messages.map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          text: m.content,
+          reasoning: m.reasoning,
+          usage: m.usage,
+          routingPath: m.routingPath,
+          diagnostic: m.diagnostic
+        }));
+        setMessages(uiMessages);
+      }
+    } catch (err) {
+      console.error('Failed to fetch messages:', err);
+    }
+  };
+
+  const handleNewChat = () => {
+    setCurrentConversationId(null);
+    setMessages([]);
+    setQuery('');
+  };
+
+  const handleDeleteConversation = (conv: Conversation, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setConversationToDelete(conv);
+  };
+
+  const executeDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+    const { id } = conversationToDelete;
+    try {
+      const res = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      if (currentConversationId === id) {
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+      fetchConversations();
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    } finally {
+      setConversationToDelete(null);
+    }
+  };
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!query.trim()) return;
+
+    setShowSuggestions(false);
+    const currentQuery = query;
+    setMessages(prev => [...prev, { role: 'user', text: currentQuery }]);
+    setLoading(true);
+    setQuery('');
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: currentQuery, conversationId: currentConversationId }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server responded with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.conversationId && data.conversationId !== currentConversationId) {
+        setCurrentConversationId(data.conversationId);
+        fetchConversations();
+      }
+
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        text: data.answer || "I'm sorry, I couldn't generate a proper response for that query.",
+        sources: data.sources,
+        visuals: data.visuals,
+        matchedPathogen: data.matchedPathogen,
+        unrecognizedPathogen: data.unrecognizedPathogen,
+        reasoning: data.reasoning,
+        usage: data.usage,
+        pdfReportId: data.reportId,
+        diagnostic: data.diagnostic,
+        routingPath: data.routingPath
+      }]);
+    } catch (error: any) {
+      console.error('Search error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'ai', 
+        text: `Sorry, an error occurred: ${error.message || 'Unknown error'}. Please try again.` 
+      }]);
+    }
+    setLoading(false);
+  };
+
+  const handleSuggestionClick = (suggestion: any) => {
+    setQuery(suggestion.name);
+    setShowSuggestions(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => (prev > 0 ? prev - 1 : prev));
+    } else if (e.key === 'Enter' && activeSuggestionIndex !== -1) {
+      e.preventDefault();
+      handleSuggestionClick(suggestions[activeSuggestionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleIngest = async (pathogenName: string) => {
+    setLoading(true);
+    setMessages(prev => [...prev, { role: 'user', text: `Ingest data for ${pathogenName}` }]);
+    try {
+      const res = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pathogenName }),
+      });
+      const data = await res.json();
+      let responseText = data.message || (data.articlesFetched !== undefined ? `Ingestion complete. Fetched ${data.articlesFetched} articles.` : 'Failed to ingest data.');
+      setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'ai', text: 'Error ingesting data.' }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-64px)] bg-gray-50 font-sans text-gray-900 overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm flex-shrink-0 z-10">
+
+        <div className="p-4">
+          <button
+            onClick={handleNewChat}
+            className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition duration-200 shadow-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            New Chat
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 pb-4">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Recent Conversations</h2>
+          {conversations.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center mt-4">No conversations yet</p>
+          ) : (
+            <div className="space-y-1">
+              {conversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  onClick={() => setCurrentConversationId(conv.id)}
+                  className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition ${currentConversationId === conv.id ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-700'}`}
+                >
+                  <div className="truncate text-sm font-medium mr-2 flex-1">{conv.title}</div>
+                  <button
+                    onClick={(e) => handleDeleteConversation(conv, e)}
+                    className={`p-1.5 rounded hover:bg-red-500 hover:text-white transition ${currentConversationId === conv.id ? 'text-blue-200 hover:text-white hover:bg-blue-500' : 'text-gray-400'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col relative h-full">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+          <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-32">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center mt-10">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm border border-blue-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-extrabold text-gray-800 mb-3 tracking-tight">How can I help you today?</h2>
+                <p className="text-gray-500 max-w-xl text-lg leading-relaxed">
+                  I can help you research pathogens using my knowledge base. Knowledgebase is built using Pubmed, Clinicaltrials.gov, WHO, and CDC Alerts.
+                </p>
+              </div>
+            ) : (
+              messages.map((msg, i) => (
+                <div key={i} className="animate-in slide-in-from-bottom-2 duration-300 space-y-4">
+                  <ChatMessage message={msg} />
+                  {!msg.role.includes('user') && msg.visuals && (
+                    <div className="max-w-3xl mx-auto">
+                      <ChartRenderer visuals={msg.visuals} pathogenName={msg.matchedPathogen} />
+                    </div>
+                  )}
+                  {msg.unrecognizedPathogen && (
+                    <div className="max-w-[85%] ml-0 mr-auto p-4 bg-orange-50 border border-orange-100 rounded-xl rounded-tl-none">
+                      <p className="text-sm font-medium text-orange-900 mb-3">
+                        I noticed you're asking about <span className="font-bold">{msg.unrecognizedPathogen}</span>, which isn't in our database yet.
+                      </p>
+                      <button
+                        onClick={() => handleIngest(msg.unrecognizedPathogen!)}
+                        disabled={loading}
+                        className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 px-5 rounded-lg transition disabled:opacity-50 shadow-sm"
+                      >
+                        Onboard {msg.unrecognizedPathogen} Now
+                      </button>
+                    </div>
+                  )}
+                  {msg.pdfReportId && (
+                    <div className="mt-2 ml-0 mr-auto">
+                      <button
+                        onClick={() => window.open(`/pdf/${msg.pdfReportId}`, '_blank')}
+                        className="flex items-center gap-2 text-white bg-red-500 hover:bg-red-600 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" />
+                        </svg>
+                        Download PDF Report
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            {loading && (
+              <div className="flex justify-start animate-in slide-in-from-bottom-2 duration-300">
+                <div className="bg-white border border-gray-100 rounded-[1.5rem] rounded-tl-md p-5 shadow-sm shadow-gray-200/50 flex space-x-2 items-center text-gray-400">
+                  <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"></div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} className="h-4" />
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className="absolute flex flex-col items-center justify-center bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-gray-50 via-gray-50/90 to-transparent pointer-events-none">
+          <div className="w-full max-w-3xl pointer-events-auto flex flex-col gap-3 relative">
+            
+            {showSuggestions && (
+              <div 
+                ref={suggestionRef}
+                className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+              >
+                <div className="max-h-60 overflow-y-auto">
+                  {suggestions.map((s, i) => (
+                    <div
+                      key={s.id || i}
+                      onClick={() => handleSuggestionClick(s)}
+                      onMouseEnter={() => setActiveSuggestionIndex(i)}
+                      className={`px-4 py-3 cursor-pointer flex items-center justify-between transition ${i === activeSuggestionIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${s.type === 'Family' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                          {s.type === 'Family' ? 'F' : 'P'}
+                        </span>
+                        <div>
+                          <div className="font-semibold text-sm">{s.label}</div>
+                          {s.type === 'Family' && <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Taxonomic Family</div>}
+                        </div>
+                      </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSearch} className="relative group">
+              <input
+                type="search"
+                className="block w-full p-4 pl-6 pr-14 text-base text-gray-900 border border-gray-200/60 rounded-[2rem] bg-white shadow-lg shadow-gray-200/50 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:outline-none placeholder-gray-400 transition-all duration-300"
+                placeholder="Ask the AI Research Agent..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={loading}
+                autoComplete="off"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading || !query.trim()}
+                className="absolute right-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed shadow-sm group-focus-within:bg-blue-600"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-0.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                </svg>
+              </button>
+            </form>
+            <div className="text-center mt-3 text-xs text-gray-400 font-medium tracking-wide">AI Research Agent can construct reports and answer questions about specific pathogens.</div>
+          </div>
+        </div>
+      </div>
+
+      {conversationToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Conversation</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete "{conversationToDelete.title}"? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConversationToDelete(null)} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition">Cancel</button>
+              <button onClick={executeDeleteConversation} className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

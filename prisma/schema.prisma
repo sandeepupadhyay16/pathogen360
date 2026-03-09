@@ -1,0 +1,199 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model Pathogen {
+  id                    String                  @id @default(uuid())
+  name                  String                  @unique
+  taxonomy              String?
+  biology               String?
+  family                String?
+  synthesizedContext    String?
+  synthesisUpdatedAt    DateTime?
+  synthesisArticleCount Int?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  articles              Article[]
+  clinicalTrials        ClinicalTrial[]
+  epidemiologyMetrics   EpidemiologyMetric[]
+  knowledgeChunks       KnowledgeChunk[]
+  reports               MarketReport[]
+  nameEmbeddings        PathogenNameEmbedding[]
+  surveillanceAlerts    SurveillanceAlert[]
+}
+
+model EpidemiologyMetric {
+  id         String   @id @default(uuid())
+  pathogenId String
+  source     String
+  indicator  String
+  value      Float
+  unit       String?
+  year       Int
+  location   String
+  createdAt  DateTime @default(now())
+  pathogen   Pathogen @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+}
+
+model SurveillanceAlert {
+  id          String   @id @default(uuid())
+  pathogenId  String
+  source      String
+  title       String
+  description String?
+  url         String?
+  severity    String?
+  publishedAt DateTime
+  createdAt   DateTime @default(now())
+  pathogen    Pathogen @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+}
+
+model Article {
+  id                  String    @id @default(uuid())
+  pubmedId            String
+  pmcId               String?
+  hasFullText         Boolean   @default(false)
+  title               String
+  abstractText        String?
+  authors             String?
+  publicationDate     DateTime?
+  countryAffiliations String?
+  pathogenId          String
+  createdAt           DateTime  @default(now())
+  pathogen            Pathogen  @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+
+  @@unique([pubmedId, pathogenId])
+}
+
+model MarketReport {
+  id               String   @id @default(uuid())
+  pathogenId       String
+  epidemiology     String?
+  populationSize   String?
+  marketPotential  String?
+  investmentGaps   String?
+  vaccineLandscape String?
+  createdAt        DateTime @default(now())
+  pathogen         Pathogen @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+}
+
+model ClinicalTrial {
+  id                    String    @id @default(uuid())
+  nctId                 String    @unique
+  title                 String
+  phase                 String?
+  status                String?
+  overallStatus         String?
+  interventionType      String?
+  isVaccine             Boolean   @default(false)
+  sponsor               String?
+  collaborators         String?
+  conditions            String?
+  locations             String?
+  description           String?
+  eligibilityCriteria   String?
+  enrollment            Int?
+  studyDesign           String?
+  primaryOutcomes       String?
+  secondaryOutcomes     String?
+  interventionDetails   String?
+  resultsPosted         Boolean   @default(false)
+  startDate             DateTime?
+  primaryCompletionDate DateTime?
+  completionDate        DateTime?
+  pathogenId            String
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  pathogen              Pathogen  @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+}
+
+model SearchHistory {
+  id        String   @id @default(uuid())
+  query     String
+  response  String?
+  createdAt DateTime @default(now())
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String    @default("New Conversation")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  role           String
+  content        String
+  createdAt      DateTime     @default(now())
+  reasoning      String?
+  usage          Json?
+  diagnostic     Json?
+  routingPath    Json?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model SemanticCache {
+  id         String                @id @default(uuid())
+  query      String
+  embedding  Unsupported("vector")
+  response   String
+  pathogenId String?
+  createdAt  DateTime              @default(now())
+}
+
+model PathogenNameEmbedding {
+  id         String                @id @default(uuid())
+  name       String                @unique
+  isAlias    Boolean               @default(false)
+  pathogenId String?
+  embedding  Unsupported("vector")
+  usageCount Int                   @default(0)
+  createdAt  DateTime              @default(now())
+  pathogen   Pathogen?             @relation(fields: [pathogenId], references: [id])
+}
+
+model KnowledgeChunk {
+  id         String                @id @default(uuid())
+  pathogenId String
+  sourceType String
+  sourceId   String
+  content    String
+  embedding  Unsupported("vector")
+  createdAt  DateTime              @default(now())
+  pathogen   Pathogen              @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+}
+
+model Operation {
+  id          String         @id @default(uuid())
+  type        String
+  status      String
+  target      String?
+  progress    Int            @default(0)
+  message     String?
+  error       String?
+  startedAt   DateTime       @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+  metadata    Json?
+  logs        OperationLog[]
+}
+
+model OperationLog {
+  id          String    @id @default(uuid())
+  operationId String
+  message     String
+  level       String    @default("INFO")
+  timestamp   DateTime  @default(now())
+  durationMs  Int?
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+}
