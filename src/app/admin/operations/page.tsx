@@ -160,33 +160,33 @@ export default function OperationsHistoryPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-8">
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
             <div className="max-w-7xl mx-auto space-y-8">
 
-                <header className="flex items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <header className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-200 gap-6">
                     <div className="flex items-center gap-4">
-                        <Link href="/admin" className="p-2 hover:bg-slate-100 rounded-lg transition">
-                            <ArrowLeft className="w-6 h-6 text-slate-600" />
+                        <Link href="/admin" className="p-2 hover:bg-slate-100 rounded-lg transition flex-shrink-0">
+                            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6 text-slate-600" />
                         </Link>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-800 tracking-tight">System Operations History</h1>
-                            <p className="text-slate-500 font-medium">Monitor background ingestion and synthesis tasks</p>
+                            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-tight">Operations History</h1>
+                            <p className="text-slate-500 font-medium text-xs md:text-sm mt-1">Monitor background ingestion and synthesis tasks</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         <button 
                             onClick={handleClearAll}
-                            className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-bold transition"
+                            className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2.5 rounded-xl text-xs font-bold transition"
                         >
                             <Trash2 className="w-4 h-4" />
                             <span>CLEAR HISTORY</span>
                         </button>
-                        <div className="flex bg-slate-100 p-1 rounded-xl" role="group" aria-label="Filter operations by status">
+                        <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto no-scrollbar" role="group" aria-label="Filter operations by status">
                             {['ALL', 'RUNNING', 'COMPLETED', 'FAILED'].map(f => (
                                 <button
                                     key={f}
                                     onClick={() => setFilter(f)}
-                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${filter === f ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition whitespace-nowrap ${filter === f ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     {f}
                                 </button>
@@ -275,11 +275,11 @@ export default function OperationsHistoryPage() {
                             <div className="space-y-6">
                                 {/* Summary Card */}
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                                    <div className="flex justify-between items-start mb-6">
+                                    <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-6">
                                         <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h2 className="text-xl font-bold text-slate-800">{selectedOp.type} Operation</h2>
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                <h2 className="text-lg md:text-xl font-bold text-slate-800">{selectedOp.type} Operation</h2>
+                                                <span className={`px-2.5 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase ${
                                                     (selectedOp.status === 'COMPLETED' || (selectedOp.status === 'RUNNING' && selectedOp.progress === 100)) ? 'bg-green-100 text-green-700' :
                                                     selectedOp.status === 'FAILED' ? 'bg-red-100 text-red-700' :
                                                     selectedOp.status === 'CANCELLED' ? 'bg-amber-100 text-amber-700' :
@@ -288,39 +288,35 @@ export default function OperationsHistoryPage() {
                                                     {selectedOp.status}
                                                 </span>
                                             </div>
-                                            <p className="text-slate-500 text-sm font-medium">ID: {selectedOp.id}</p>
+                                            <p className="text-slate-400 text-[10px] md:text-xs font-medium font-mono truncate max-w-[200px] md:max-w-none">ID: {selectedOp.id}</p>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
                                             {(selectedOp.status === 'RUNNING' || selectedOp.status === 'PENDING') && (
                                                 <button
                                                     onClick={() => handleAbort(selectedOp.id)}
                                                     disabled={stoppingId === selectedOp.id}
-                                                    className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-bold transition mr-4 disabled:opacity-50"
+                                                    className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50"
                                                 >
-                                                    {stoppingId === selectedOp.id ? (
-                                                        <RefreshCw className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <XCircle className="w-4 h-4" />
-                                                    )}
+                                                    {stoppingId === selectedOp.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                                                     {stoppingId === selectedOp.id ? 'STOPPING...' : 'STOP TASK'}
                                                 </button>
                                             )}
 
                                             {(selectedOp.status === 'FAILED' || selectedOp.status === 'CANCELLED') && selectedOp.metadata && (
-                                                <div className="flex gap-2 mr-4">
+                                                <div className="flex flex-col sm:flex-row gap-2">
                                                     {confirmRestartId === selectedOp.id ? (
                                                         <>
                                                             <button
                                                                 onClick={() => handleRestart(selectedOp.id)}
                                                                 disabled={restartingId === selectedOp.id}
-                                                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition disabled:opacity-50"
+                                                                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50"
                                                             >
                                                                 {restartingId === selectedOp.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                                                                CONFIRM RESTART
+                                                                RESTART
                                                             </button>
                                                             <button
                                                                 onClick={() => setConfirmRestartId(null)}
-                                                                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                                                                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
                                                             >
                                                                 CANCEL
                                                             </button>
@@ -328,7 +324,7 @@ export default function OperationsHistoryPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => setConfirmRestartId(selectedOp.id)}
-                                                            className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-xl text-xs font-bold transition"
+                                                            className="flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2.5 rounded-xl text-xs font-bold transition"
                                                         >
                                                             <RefreshCw className="w-4 h-4" />
                                                             RESTART TASK
@@ -336,9 +332,9 @@ export default function OperationsHistoryPage() {
                                                     )}
                                                 </div>
                                             )}
-                                            <div className="text-right">
-                                                <div className="text-xs font-bold text-slate-400 uppercase">Duration</div>
-                                                <div className="text-xl font-black text-slate-800">{formatDuration(selectedOp.durationMs || (Date.now() - new Date(selectedOp.startedAt).getTime()))}</div>
+                                            <div className="text-left md:text-right border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 mt-2 md:mt-0">
+                                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Duration</div>
+                                                <div className="text-lg md:text-xl font-black text-slate-800">{formatDuration(selectedOp.durationMs || (Date.now() - new Date(selectedOp.startedAt).getTime()))}</div>
                                             </div>
                                         </div>
                                     </div>

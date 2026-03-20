@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FileText, Download, CheckCircle2, Sparkles, ChevronDown } from 'lucide-react';
+import { FileText, Download, CheckCircle2 } from 'lucide-react';
 import { downloadReportAsPdf } from '@/lib/pdf';
 import CitationContent from './CitationContent';
-import DiagnosticFlowchart from './DiagnosticFlowchart';
 
 export interface Message {
     id?: string;
@@ -32,7 +31,6 @@ export interface Message {
         durationMs?: number;
     }>;
     matchedMedicalTerm?: string;
-    unrecognizedMedicalTerm?: string;
 }
 
 interface ChatMessageProps {
@@ -44,10 +42,6 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
     const content = message.content || message.text || '';
     const [downloading, setDownloading] = React.useState(false);
     const [downloaded, setDownloaded] = React.useState(false);
-    const [showReasoning, setShowReasoning] = React.useState(false);
-    const [showDiagnostic, setShowDiagnostic] = useState(false);
-
-    const diagnosticOpen = message.routingPath ? message.routingPath.length > 0 : false;
 
     const handleDownload = async () => {
         if (!message.pdfReportId) return;
@@ -74,23 +68,6 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
             >
                 {!isUser && (
                     <div className="bg-white rounded-[14px] p-5 md:p-7 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] ring-1 ring-gray-100">
-                        {message.reasoning && (
-                            <div className="mb-6">
-                                <button
-                                    onClick={() => setShowReasoning(!showReasoning)}
-                                    className="text-[10px] uppercase tracking-widest font-bold text-gray-400 hover:text-blue-500 transition-colors flex items-center gap-1.5 group"
-                                >
-                                    <Sparkles size={12} className={showReasoning ? 'text-blue-500' : ''} />
-                                    {showReasoning ? 'Hide Synthesis Reasoning' : 'Show Synthesis Reasoning'}
-                                </button>
-                                {showReasoning && (
-                                    <div className="mt-3 p-4 bg-gray-50/50 rounded-xl text-xs italic text-gray-600 border-l-3 border-blue-200 leading-relaxed shadow-inner">
-                                        {message.reasoning}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         {message.pdfReportId && (
                             <div className="flex flex-col gap-3 mb-6">
                                 <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100/50">
@@ -136,40 +113,6 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
                     <p className="text-[15px] leading-relaxed whitespace-pre-wrap font-medium">{content}</p>
                 )}
             </div>
-
-            {!isUser && message.usage && (
-                <div className="mt-1 px-2 text-[9px] text-gray-400 font-medium uppercase tracking-tight flex gap-2">
-                    <span>Context: {message.usage.total_tokens?.toLocaleString() || 0} tokens</span>
-                    <span className="text-gray-200">|</span>
-                    <span>Limit: 128k</span>
-                </div>
-            )}
-
-            {!isUser && message.routingPath && <div className="mt-3" />}
-            {!isUser && diagnosticOpen && (
-                <div className="mt-2 ml-0 mr-auto">
-                    <button
-                        onClick={() => setShowDiagnostic(!showDiagnostic)}
-                        className="text-xs flex items-center gap-1 text-blue-500 hover:text-blue-600 font-medium transition mb-2 group"
-                    >
-                        <ChevronDown size={14} className={`transition-transform ${showDiagnostic ? 'rotate-180' : ''}`} />
-                        View Diagnostic Flow ({message.routingPath?.length || 0} steps)
-                    </button>
-                    {showDiagnostic && (
-                        <div className="animate-in slide-in-from-top-1 fade-in duration-200">
-                            <DiagnosticFlowchart
-                                medicalTermResolution={message.diagnostic?.medicalTermResolution || {}}
-                                routeSelection={message.diagnostic?.routeSelection || {}}
-                                contextAssembly={message.diagnostic?.contextAssembly || {}}
-                                cacheCheck={message.diagnostic?.cacheCheck || {}}
-                                tokenUsage={message.diagnostic?.tokenUsage || undefined}
-                                routingPath={message.routingPath}
-                                className=""
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 };

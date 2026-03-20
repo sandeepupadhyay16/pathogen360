@@ -41,7 +41,7 @@ function RenderingCitation({ refText, refMap, keyPrefix }: { refText: string, re
                     if (source.type === 'article') {
                         href = `https://pubmed.ncbi.nlm.nih.gov/${source.id}/`;
                         colorClass = 'text-purple-600 hover:text-purple-800';
-                    } else if (source.type === 'clinical_trial') {
+                    } else if (source.type === 'clinical_trial' || /^NCT\d+/i.test(source.id)) {
                         href = `https://clinicaltrials.gov/study/${source.id}`;
                         colorClass = 'text-teal-600 hover:text-teal-800';
                     } else if (source.type === 'report' || source.type === 'strategic_report') {
@@ -57,6 +57,9 @@ function RenderingCitation({ refText, refMap, keyPrefix }: { refText: string, re
                     } else if (source.type === 'metric' || source.type === 'gho_metric') {
                         href = 'https://www.who.int/data/gho';
                         colorClass = 'text-emerald-600 hover:text-emerald-800';
+                    } else if (source.type === 'supplemental') {
+                        href = '#'; // Internal sources don't have external URLs yet
+                        colorClass = 'text-slate-500 hover:text-slate-700';
                     }
                 }
 
@@ -106,6 +109,7 @@ export default function CitationContent({ content, sources, className = "" }: Ci
     // Pre-process content to handle various citation formats and convert them into 
     // markdown links with a hash-based URI that ReactMarkdown won't sanitize.
     const processedContent = useMemo(() => {
+        if (typeof content !== 'string') return '';
         let text = content;
 
         // Pattern for [1], [2,3], 【1】 etc. - handles spaces like [1, 2]
@@ -246,6 +250,58 @@ export default function CitationContent({ content, sources, className = "" }: Ci
             >
                 {processedContent}
             </ReactMarkdown>
+            
+            {sources && sources.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        Sources & References
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+                        {sources
+                            .sort((a, b) => (a.refIndex || 0) - (b.refIndex || 0))
+                            .map((source) => {
+                                // Only show if cited in text (regex check)
+                                if (source.refIndex && typeof content === 'string' && !content.includes(`[${source.refIndex}]`)) return null;
+
+                                // USER REQUEST: Hide internal medical360 (supplemental) references from the bibliography list
+                                // BUT: Only if NOT cited in this specific message to avoid broken links
+                                if (source.type === 'supplemental' && !content.includes(`[${source.refIndex}]`)) return null;
+
+                                let href = '#';
+                                if (source.type === 'article') href = `https://pubmed.ncbi.nlm.nih.gov/${source.id}/`;
+                                else if (source.type === 'clinical_trial') href = `https://clinicaltrials.gov/study/${source.id}`;
+                                else if (source.type === 'report' || source.type === 'strategic_report') href = `/report/${source.id}`;
+                                else if (source.type === 'alert' || source.type === 'surveillance_alert') href = source.id;
+                                else if (source.type === 'metric' || source.type === 'gho_metric') href = 'https://www.who.int/data/gho';
+                                else if (source.type === 'supplemental') href = '#';
+
+                                return (
+                                    <div key={`ref-${source.refIndex}`} id={`source-${source.refIndex}`} className="flex gap-2.5 text-[12px] leading-relaxed group scroll-mt-24">
+                                        <span className="font-bold text-slate-400 tabular-nums min-w-[20px]">
+                                            [{source.refIndex}]
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <a 
+                                                href={href} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer" 
+                                                className="text-slate-600 hover:text-blue-600 font-medium line-wrap transition-colors decoration-blue-200/50 hover:underline underline-offset-4"
+                                            >
+                                                {source.title}
+                                            </a>
+                                            <span className="block text-[10px] text-slate-400 mt-0.5 font-medium">
+                                                {source.authors && `${source.authors} • `} 
+                                                {source.type !== 'supplemental' && source.id && `${source.id.toUpperCase()} • `}
+                                                {source.date && new Date(source.date).getFullYear()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -23,6 +23,8 @@ export default function SearchPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   
   const [availableTopics, setAvailableTopics] = useState<any[]>([]);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -60,7 +62,11 @@ export default function SearchPage() {
   }, [currentConversationId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only auto-scroll to the bottom when the user sends a message
+    // This allows the user to stay at the question and scroll down as they read the AI response
+    if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   // Fetch suggested questions when exactly one topic is selected
@@ -203,6 +209,7 @@ export default function SearchPage() {
     const currentQuery = query;
     setMessages(prev => [...prev, { role: 'user', text: currentQuery }]);
     setLoading(true);
+    setStatus('Initializing...');
     setQuery('');
 
     try {
@@ -237,7 +244,10 @@ export default function SearchPage() {
           try {
             const data = JSON.parse(line);
             
-            if (data.type === 'metadata') {
+            if (data.type === 'status') {
+              setStatus(data.message);
+            } else if (data.type === 'metadata') {
+              setStatus(null);
               if (data.conversationId && data.conversationId !== currentConversationId) {
                 setCurrentConversationId(data.conversationId);
                 fetchConversations();
@@ -252,6 +262,7 @@ export default function SearchPage() {
                 routingPath: data.routingPath
               };
             } else if (data.type === 'text') {
+              setStatus(null);
               aiMessage.text += data.content;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
@@ -286,6 +297,7 @@ export default function SearchPage() {
       }]);
     }
     setLoading(false);
+    setStatus(null);
   };
 
   const handleSuggestionClick = (suggestion: any) => {
@@ -326,12 +338,33 @@ export default function SearchPage() {
       setMessages(prev => [...prev, { role: 'ai', text: 'Error performing research.' }]);
     }
     setLoading(false);
+    setStatus(null);
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-50 font-sans text-gray-900 overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] bg-gray-50 font-sans text-gray-900 overflow-hidden relative">
+      {/* Mobile Sidebar Toggle */}
+      <button
+        onClick={() => setShowSidebar(!showSidebar)}
+        className="md:hidden fixed bottom-24 left-4 z-50 p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all active:scale-95"
+        title="Toggle History"
+      >
+        <MessageSquare className="h-6 w-6" />
+      </button>
+
+      {/* Sidebar Overlay (Mobile) */}
+      {showSidebar && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/40 z-40 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-sm flex-shrink-0 z-10">
+      <div className={`
+        fixed inset-y-0 left-0 z-40 w-80 bg-white border-r border-gray-200 flex flex-col shadow-xl transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:shadow-none
+        ${showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
 
         <div className="p-4">
           <button
@@ -352,7 +385,10 @@ export default function SearchPage() {
               {conversations.map((conv) => (
                 <div
                   key={conv.id}
-                  onClick={() => setCurrentConversationId(conv.id)}
+                  onClick={() => {
+                    setCurrentConversationId(conv.id);
+                    setShowSidebar(false);
+                  }}
                   className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition ${currentConversationId === conv.id ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-gray-100 text-gray-700'}`}
                 >
                   <div className="truncate text-sm font-medium mr-2 flex-1">{conv.title}</div>
@@ -371,9 +407,9 @@ export default function SearchPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative h-full">
+      <div className="flex-1 flex flex-col relative h-full w-full min-w-0">
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-32">
+          <div className="max-w-3xl mx-auto flex flex-col gap-6 pb-40">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center mt-10">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm border border-blue-100">
@@ -522,10 +558,17 @@ export default function SearchPage() {
             )}
             {loading && (
               <div className="flex justify-start animate-in slide-in-from-bottom-2 duration-300">
-                <div className="bg-white border border-gray-100 rounded-[1.5rem] rounded-tl-md p-5 shadow-sm shadow-gray-200/50 flex space-x-2 items-center text-gray-400">
-                  <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                  <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"></div>
+                <div className="bg-white border border-gray-100 rounded-[1.5rem] rounded-tl-md p-5 shadow-sm shadow-gray-200/50 flex space-x-4 items-center text-gray-400">
+                  <div className="flex space-x-1.5">
+                    <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"></div>
+                  </div>
+                  {status && (
+                    <span className="text-sm font-medium text-gray-500 animate-in fade-in slide-in-from-left-2 duration-300">
+                      {status}
+                    </span>
+                  )}
                 </div>
               </div>
             )}

@@ -180,8 +180,9 @@ User Query: "${query}"
 
 Rules:
 1. If the entity in the query matches or is a variation of an "Available Onboarded Term" (e.g., "Alzheimer's" -> "Alzheimers", "PD" -> "Parkinsons"), YOU MUST return that EXACT onboarded name.
-2. If it is a new entity, return its canonical name.
-3. If no entity is found, return "NONE".
+2. If the user asks about a secondary concept RELATED to an onboarded term (e.g., "Covid vaccine", "Long Covid", "Covid symptoms" -> "COVID-19"), YOU MUST return the EXHIBITED PARENT onboarded name.
+3. If it is a completely new entity, return its canonical name.
+4. If no entity is found, return "NONE".
 
 Return ONLY the name:`;
 

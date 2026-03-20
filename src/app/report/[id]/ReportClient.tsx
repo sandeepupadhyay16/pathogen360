@@ -157,37 +157,37 @@ export default function ReportClient({ report, sources }: ReportClientProps) {
     };
 
     return (
-        <main className="min-h-screen bg-slate-50 p-8">
+        <main className="min-h-screen bg-slate-50 p-4 md:p-8">
             <div className="max-w-6xl mx-auto space-y-8">
                 
                 {/* Header Section */}
                 <div className="flex flex-col gap-6">
-                    <Link href="/admin" className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition w-fit group">
+                    <Link href="/" className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition w-fit group">
                         <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition" />
-                        <span className="text-sm font-bold">Back to Dashboard</span>
+                        <span className="text-sm font-bold">Back to Medical Library</span>
                     </Link>
 
-                    <div className="flex items-end justify-between">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-indigo-600 font-black text-xs uppercase tracking-widest">
+                            <div className="flex items-center gap-2 text-indigo-600 font-black text-[10px] md:text-xs uppercase tracking-widest">
                                 <Sparkles className="w-3 h-3" />
                                 Research Intelligence Report
                             </div>
-                            <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight">{report.name}</h1>
-                            <div className="flex items-center gap-4 text-slate-400 text-xs font-medium">
+                            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">{report.name}</h1>
+                            <div className="flex flex-wrap items-center gap-2 md:gap-4 text-slate-400 text-[10px] md:text-xs font-medium">
                                 <span>Report ID: {report.id.substring(0, 8).toUpperCase()}</span>
-                                <span>•</span>
+                                <span className="hidden md:inline">•</span>
                                 <span>Generated: {report.synthesisUpdatedAt ? new Date(report.synthesisUpdatedAt).toLocaleDateString() : 'N/A'}</span>
                             </div>
                         </div>
 
-                        <div className="flex gap-4">
-                            <div className="bg-white px-6 py-3 rounded-xl border border-slate-200 shadow-sm text-center min-w-[100px]">
-                                <span className="block text-2xl font-black text-slate-800">{report.articles?.length || 0}</span>
+                        <div className="grid grid-cols-2 md:flex gap-3 md:gap-4">
+                            <div className="bg-white px-4 md:px-6 py-3 rounded-xl border border-slate-200 shadow-sm text-center min-w-[80px] md:min-w-[100px]">
+                                <span className="block text-xl md:text-2xl font-black text-slate-800">{report.articles?.length || 0}</span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Articles</span>
                             </div>
-                            <div className="bg-white px-6 py-3 rounded-xl border border-slate-200 shadow-sm text-center min-w-[100px]">
-                                <span className="block text-2xl font-black text-slate-800">{report.clinicalTrials?.length || 0}</span>
+                            <div className="bg-white px-4 md:px-6 py-3 rounded-xl border border-slate-200 shadow-sm text-center min-w-[80px] md:min-w-[100px]">
+                                <span className="block text-xl md:text-2xl font-black text-slate-800">{report.clinicalTrials?.length || 0}</span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Trials</span>
                             </div>
                         </div>
@@ -197,24 +197,24 @@ export default function ReportClient({ report, sources }: ReportClientProps) {
                 {/* Main Content Card */}
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
                     {/* Professional Tabs */}
-                    <div className="flex border-b border-slate-100 px-2 bg-slate-50/50">
+                    <div className="flex border-b border-slate-100 bg-slate-50/50 overflow-x-auto no-scrollbar scroll-smooth">
                         <button
                             onClick={() => setActiveTab('nucleus')}
-                            className={`px-8 py-5 text-sm font-black transition flex items-center gap-2 border-b-2 ${activeTab === 'nucleus' ? 'text-purple-600 border-purple-600 bg-white' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                            className={`px-4 md:px-8 py-4 md:py-5 text-xs md:text-sm font-black transition flex items-center gap-2 border-b-2 flex-shrink-0 ${activeTab === 'nucleus' ? 'text-purple-600 border-purple-600 bg-white' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
                         >
                             <Sparkles className="w-4 h-4" />
                             Knowledge Nucleus
                         </button>
                         <button
                             onClick={() => setActiveTab('pubmed')}
-                            className={`px-8 py-5 text-sm font-black transition flex items-center gap-2 border-b-2 ${activeTab === 'pubmed' ? 'text-blue-600 border-blue-600 bg-white' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                            className={`px-4 md:px-8 py-4 md:py-5 text-xs md:text-sm font-black transition flex items-center gap-2 border-b-2 flex-shrink-0 ${activeTab === 'pubmed' ? 'text-blue-600 border-blue-600 bg-white' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
                         >
                             <FileText className="w-4 h-4" />
                             PubMed Research
                         </button>
                         <button
                             onClick={() => setActiveTab('trials')}
-                            className={`px-8 py-5 text-sm font-black transition flex items-center gap-2 border-b-2 ${activeTab === 'trials' ? 'text-teal-600 border-teal-600 bg-white' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                            className={`px-4 md:px-8 py-4 md:py-5 text-xs md:text-sm font-black transition flex items-center gap-2 border-b-2 flex-shrink-0 ${activeTab === 'trials' ? 'text-teal-600 border-teal-600 bg-white' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
                         >
                             <FlaskConical className="w-4 h-4" />
                             Clinical Trials
@@ -223,7 +223,7 @@ export default function ReportClient({ report, sources }: ReportClientProps) {
 
                     <div className="p-8 space-y-8">
                         {/* Control Bar */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
                             <div className="relative flex-1">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
@@ -237,7 +237,7 @@ export default function ReportClient({ report, sources }: ReportClientProps) {
                             {activeTab === 'nucleus' && (
                                 <button
                                     onClick={downloadPdf}
-                                    className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-2xl hover:bg-purple-700 transition shadow-lg shadow-purple-200 font-black text-xs uppercase tracking-widest"
+                                    className="flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-2xl hover:bg-purple-700 transition shadow-lg shadow-purple-200 font-black text-xs uppercase tracking-widest whitespace-nowrap"
                                 >
                                     <Download className="w-4 h-4" />
                                     Download PDF
@@ -414,7 +414,6 @@ export default function ReportClient({ report, sources }: ReportClientProps) {
             {/* Answer Modal */}
             {selectedQuestion && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-8 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    {console.log('[DEBUG_UI] Modal open for question:', selectedQuestion)}
                     <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                         {/* Modal Header */}
                         <div className="p-8 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">

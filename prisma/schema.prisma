@@ -18,16 +18,16 @@ model MedicalTerm {
   synthesizedContext    String?
   synthesisUpdatedAt    DateTime?
   synthesisArticleCount Int?
-  synthesisSources      Json?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  synthesisSources      Json?
   articles              Article[]
   clinicalTrials        ClinicalTrial[]
   knowledgeChunks       KnowledgeChunk[]
+  logicalQuestions      LogicalQuestion[]
   metrics               MedicalMetric[]
   nameEmbeddings        MedicalTermEmbedding[]
   surveillanceAlerts    SurveillanceAlert[]
-  logicalQuestions      LogicalQuestion[]
 }
 
 model MedicalMetric {
@@ -125,9 +125,9 @@ model Message {
   createdAt      DateTime     @default(now())
   reasoning      String?
   usage          Json?
-  sources        Json?
   diagnostic     Json?
   routingPath    Json?
+  sources        Json?
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
@@ -136,9 +136,9 @@ model SemanticCache {
   query         String
   embedding     Unsupported("vector")
   response      String
-  sources       Json?
   medicalTermId String?
   createdAt     DateTime              @default(now())
+  sources       Json?
 }
 
 model MedicalTermEmbedding {
@@ -194,9 +194,9 @@ model LogicalQuestion {
   question       String
   category       String?
   searchKeywords String?
-  answer         String?
   answered       Boolean     @default(false)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+  answer         String?
   medicalTerm    MedicalTerm @relation(fields: [medicalTermId], references: [id], onDelete: Cascade)
 }

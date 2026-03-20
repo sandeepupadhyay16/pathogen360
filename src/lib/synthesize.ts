@@ -193,7 +193,7 @@ export async function synthesizeMedicalContext(
         else if (pubDate >= sixtyMonthsAgo) fidelity = 'balanced';
 
         const summary = await summarizeArticle(medicalTerm, article, fidelity);
-        createChunk(medicalTermId, 'ARTICLE', article.id, `[PMID:${article.pubmedId}] ${article.title}\n${article.abstractText || ''}`);
+        createChunk(medicalTermId, 'ARTICLE', article.pubmedId, `[PMID:${article.pubmedId}] ${article.title}\n${article.abstractText || ''}`);
 
         // Find the source and inject the ref index into the summary header
         const s = sources.find(src => src.id === article.pubmedId);
@@ -207,7 +207,7 @@ export async function synthesizeMedicalContext(
     const trialSummaries = await parallelMap(trialsToSummarize, CONCURRENCY_LIMIT, async (t) => {
         const trialUrl = `https://clinicaltrials.gov/study/${t.nctId}`;
         const trialText = `Clinical Trial: "${t.title}" (NCT: ${t.nctId}, Phase: ${t.phase}, Status: ${t.overallStatus}, Sponsor: ${t.sponsor}, Enrollment: ${t.enrollment})`;
-        await createChunk(medicalTermId, 'TRIAL', t.id, `${trialText}\nInterventions: ${t.interventionDetails}`);
+        await createChunk(medicalTermId, 'TRIAL', t.nctId, `${trialText}\nInterventions: ${t.interventionDetails}`);
         
         // Inject ref index
         const s = sources.find(src => src.id === t.nctId);
