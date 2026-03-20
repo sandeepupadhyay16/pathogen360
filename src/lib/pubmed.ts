@@ -1,27 +1,34 @@
 import { XMLParser } from 'fast-xml-parser';
+import { sleep, fetchWithRetry, ncbilt } from './utils';
 
 const BASE_URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
 const PMC_OA_URL = 'https://www.ncbi.nlm.nih.gov/pmc/oai/oai.cgi';
 
 /**
- * Searches PubMed for the given disease/pathogen focusing on vaccines
- * and immunology research in the specific target countries over a specific year range.
+ * Enhanced fetch wrapper using global NCBI rate limiter.
+ */
+async function fetchNCBI(url: string, retries: number = 5): Promise<Response> {
+    await ncbilt.throttle();
+    return fetchWithRetry(url, {}, retries);
+}
+
+/**
+ * Searches PubMed for the given medical term.
  */
 export async function searchPubMed(query: string, maxResults: number = 50, startYear?: number, endYear?: number): Promise<string[]> {
     const currentYear = endYear || new Date().getFullYear();
     const pastYear = startYear || (currentYear - 10);
     const dateRange = `("${pastYear}/01/01"[Date - Publication] : "${currentYear}/12/31"[Date - Publication])`;
-    const countries = `("United States"[Affiliation] OR "USA"[Affiliation] OR "Germany"[Affiliation] OR "Japan"[Affiliation] OR "United Kingdom"[Affiliation] OR "UK"[Affiliation])`;
-    // Broadened keyword set: captures vaccine trials, antibody studies, immunization research, and therapeutics
-    const topicKeywords = `(vaccine OR immunization OR immunisation OR antibody OR prophylactic OR therapeutic OR immunotherapy OR antiviral)`;
-    const fullQuery = `(${query}) AND ${topicKeywords} AND ${countries} AND ${dateRange}`;
+    
+    // Generic medical search query without specific filters
+    const fullQuery = `(${query}) AND ${dateRange}`;
 
     // Cap maxResults at 1000 for prototype stability
     const finalMax = Math.min(maxResults, 1000);
 
     const searchUrl = `${BASE_URL}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(fullQuery)}&retmax=${finalMax}&retmode=json`;
 
-    const response = await fetch(searchUrl);
+    const response = await fetchNCBI(searchUrl);
     if (!response.ok) {
         throw new Error(`Failed to search PubMed: ${response.statusText}`);
     }
@@ -48,7 +55,7 @@ export interface PubMedArticle {
 async function fetchPmcFullText(pmcId: string): Promise<string | null> {
     try {
         const url = `${PMC_OA_URL}?verb=GetRecord&identifier=oai:pubmedcentral.nih.gov:${pmcId.replace('PMC', '')}&metadataPrefix=pmc`;
-        const response = await fetch(url);
+        const response = await fetchNCBI(url);
         if (!response.ok) return null;
 
         const xml = await response.text();
@@ -93,7 +100,7 @@ export async function fetchPubMedDetails(ids: string[], fetchFullText: boolean =
         const fetchUrl = `${BASE_URL}/efetch.fcgi?db=pubmed&id=${chunk.join(',')}&retmode=xml`;
 
         try {
-            const response = await fetch(fetchUrl);
+            const response = await fetchNCBI(fetchUrl);
             if (!response.ok) {
                 console.error(`Failed to fetch chunk: ${response.statusText}`);
                 continue;
@@ -156,9 +163,30 @@ export async function fetchPubMedDetails(ids: string[], fetchFullText: boolean =
                         .filter(Boolean)
                         .join(' ');
 
-                    const targetCountries = ['United States', 'USA', 'Germany', 'Japan', 'United Kingdom', 'UK'];
-                    const foundCountries = targetCountries.filter(c => affiliations.includes(c));
-                    if (foundCountries.length > 0) countryAffiliations = foundCountries.join(', ');
+                    // Refined country identification using a mapping of target regions.
+                    // This prevents messy hospital/uni names from polluting the region filter.
+                    const countryMap: Record<string, string[]> = {
+                        'China': ['China', 'Beijing', 'Shanghai', 'Guangzhou', 'PRC'],
+                        'Japan': ['Japan', 'Tokyo', 'Osaka', 'Kyoto'],
+                        'Germany': ['Germany', 'Deutschland', 'Berlin', 'Munich', 'Hamburg'],
+                        'USA': ['USA', 'United States', 'California', 'New York', 'Texas', 'Boston'],
+                        'UK': ['UK', 'United Kingdom', 'London', 'England', 'Oxford', 'Cambridge', 'Great Britain'],
+                        'France': ['France', 'Paris', 'Lyon'],
+                        'Switzerland': ['Switzerland', 'Swiss', 'Zurich', 'Geneva', 'Basel'],
+                        'Italy': ['Italy', 'Rome', 'Milan'],
+                        'Canada': ['Canada', 'Toronto', 'Montreal', 'Vancouver']
+                    };
+
+                    const foundRegions = new Set<string>();
+                    for (const [region, variants] of Object.entries(countryMap)) {
+                        if (variants.some(v => affiliations.includes(v))) {
+                            foundRegions.add(region);
+                        }
+                    }
+
+                    if (foundRegions.size > 0) {
+                        countryAffiliations = Array.from(foundRegions).join(', ');
+                    }
                 }
 
                 let pubYear = article?.Journal?.JournalIssue?.PubDate?.Year;

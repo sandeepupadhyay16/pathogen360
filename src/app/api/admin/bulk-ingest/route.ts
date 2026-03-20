@@ -5,12 +5,12 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-const REGISTRY_PATH = path.join(process.cwd(), 'src/config/pathogen-registry.json');
+const REGISTRY_PATH = path.join(process.cwd(), 'src/config/medical-term-registry.json');
 const RATE_LIMIT_DELAY = 1500; // ms between PubMed requests to avoid 429s
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-function readRegistry(): { pathogens: string[]; defaultScanDepth: number } {
+function readRegistry(): { medicalTerms: string[]; defaultScanDepth: number } {
     const raw = fs.readFileSync(REGISTRY_PATH, 'utf-8');
     return JSON.parse(raw);
 }
@@ -61,66 +61,56 @@ async function runBulkIngest(force: boolean) {
 
     try {
         const registry = readRegistry();
-        const pathogens = registry.pathogens;
+        const medicalTerms = registry.medicalTerms;
         const scanDepth = registry.defaultScanDepth || 50;
-        jobState.total = pathogens.length;
+        jobState.total = medicalTerms.length;
 
-        if (pathogens.length === 0) {
-            addLog('Registry is empty. Add pathogens first.');
+        if (medicalTerms.length === 0) {
+            addLog('Registry is empty. Add medical terms first.');
             jobState.running = false;
             jobState.finishedAt = new Date().toISOString();
             return;
         }
 
-        addLog(`Starting bulk ingestion for ${pathogens.length} pathogens (scan depth: ${scanDepth})...`);
+        addLog(`Starting bulk ingestion for ${medicalTerms.length} medical terms (scan depth: ${scanDepth})...`);
         const failedNames: string[] = [];
 
-        for (const pathogenName of pathogens) {
-            const pct = Math.floor((jobState.completed / pathogens.length) * 100);
+        for (const medicalTermName of medicalTerms) {
+            const pct = Math.floor((jobState.completed / medicalTerms.length) * 100);
             jobState.progress = pct;
 
             // Check if already ingested (resume behavior)
             if (!force) {
-                const existing = await prisma.pathogen.findFirst({
-                    where: { name: pathogenName },
+                const existing = await prisma.medicalTerm.findFirst({
+                    where: { name: medicalTermName },
                     include: { _count: { select: { articles: true } } }
                 });
                 if (existing && existing._count.articles > 0) {
                     jobState.skipped++;
                     jobState.completed++;
-                    addLog(`⏭ Skipping ${pathogenName} — already has ${existing._count.articles} articles`);
+                    addLog(`⏭ Skipping ${medicalTermName} — already has ${existing._count.articles} articles`);
                     continue;
                 }
             }
 
-            addLog(`[${jobState.completed + 1}/${pathogens.length}] Ingesting: ${pathogenName}...`);
+            addLog(`[${jobState.completed + 1}/${medicalTerms.length}] Ingesting: ${medicalTermName}...`);
 
             try {
-                // Identify family via LLM
-                const familyPrompt = `Identify the taxonomic family for the pathogen: "${pathogenName}".
-This could be a virus, bacterium, fungus, or parasite.
-Examples: Filoviridae, Flaviviridae, Coronaviridae, Enterobacteriaceae, Candida (genus), Plasmodiidae.
-Respond with ONLY the family name — no explanation, no formatting, no punctuation. If truly unknown, respond with "Unknown".`;
+                // (Family fetching removed for MedicalTerm format)
 
-                let { content: familyResponse } = await generateLLMResponse([
-                    { role: 'system', content: 'You are a microbiologist and taxonomist. Provide only the requested taxonomic family name with no additional text.' },
-                    { role: 'user', content: familyPrompt }
-                ], 0);
-                let family: string | null = familyResponse.trim().replace(/\.$/, '').replace(/["']/g, '');
-                if (family.toLowerCase() === 'unknown' || family.length > 50) family = null;
-
-                // Upsert pathogen
-                const pathogen = await prisma.pathogen.upsert({
-                    where: { name: pathogenName },
-                    update: { family: family || undefined },
-                    create: { name: pathogenName, family }
+                // Upsert medical term
+                const term = await prisma.medicalTerm.upsert({
+                    where: { name: medicalTermName },
+                    update: {},
+                    create: { name: medicalTermName }
                 });
+                const medicalTermId = term.id;
 
                 // Search PubMed
-                const pubmedIds = await searchPubMed(pathogenName, scanDepth);
+                const pubmedIds = await searchPubMed(medicalTermName, scanDepth);
 
                 if (pubmedIds.length === 0) {
-                    addLog(`  ⚠ ${pathogenName}: No PubMed articles found`);
+                    addLog(`  ⚠ ${medicalTermName}: No PubMed articles found`);
                     jobState.completed++;
                     continue;
                 }
@@ -131,12 +121,12 @@ Respond with ONLY the family name — no explanation, no formatting, no punctuat
 
                 for (const article of articles) {
                     try {
-                        // Use compound unique (pubmedId + pathogenId) for upsert
+                        // Use compound unique (pubmedId + medicalTermId) for upsert
                         await prisma.article.upsert({
                             where: {
-                                pubmedId_pathogenId: {
+                                pubmedId_medicalTermId: {
                                     pubmedId: article.pubmedId,
-                                    pathogenId: pathogen.id
+                                    medicalTermId: medicalTermId
                                 }
                             },
                             update: {
@@ -157,7 +147,7 @@ Respond with ONLY the family name — no explanation, no formatting, no punctuat
                                 authors: article.authors,
                                 publicationDate: article.publicationDate ? new Date(article.publicationDate) : null,
                                 countryAffiliations: article.countryAffiliations,
-                                pathogenId: pathogen.id
+                                medicalTermId: medicalTermId
                             }
                         });
                         savedCount++;
@@ -169,15 +159,15 @@ Respond with ONLY the family name — no explanation, no formatting, no punctuat
 
                 jobState.totalArticles += savedCount;
                 const ftCount = articles.filter(a => a.hasFullText).length;
-                addLog(`  ✓ ${pathogenName} (${family || '?'}): ${savedCount} articles saved (${ftCount} full-text)`);
+                addLog(`  ✓ ${medicalTermName}: ${savedCount} articles saved (${ftCount} full-text)`);
 
-                // Rate limit between pathogens
+                // Rate limit between medical terms
                 await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
                 jobState.failed++;
-                failedNames.push(pathogenName);
-                console.error(`Bulk ingest failed for ${pathogenName}:`, err);
-                addLog(`  ✗ ${pathogenName}: FAILED — ${err.message || 'Unknown error'}`);
+                failedNames.push(medicalTermName);
+                console.error(`Bulk ingest failed for ${medicalTermName}:`, err);
+                addLog(`  ✗ ${medicalTermName}: FAILED — ${err.message || 'Unknown error'}`);
                 await sleep(RATE_LIMIT_DELAY);
             }
 
@@ -216,7 +206,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
         message: 'Bulk ingestion started.',
-        total: readRegistry().pathogens.length,
+        total: readRegistry().medicalTerms.length,
     });
 }
 

@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 
-export type OperationType = 'INGEST' | 'SYNTHESIZE' | 'SYNC_TRIALS' | 'SYNC_HEALTH' | 'PURGE' | 'BACKFILL';
+export type OperationType = 'INGEST' | 'SYNTHESIZE' | 'SYNC_TRIALS' | 'PURGE' | 'BACKFILL' | 'ONBOARD';
 export type OperationStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 export async function createOperation(type: OperationType, target?: string, metadata?: any) {
@@ -54,6 +54,7 @@ export async function addOperationLog(id: string, message: string, level: string
 export async function runInContext(id: string, task: (op: {
     log: (msg: string, level?: 'INFO' | 'WARN' | 'ERROR', durationMs?: number) => Promise<void>;
     progress: (val: number, msg?: string) => Promise<void>;
+    updateMetadata: (metadata: any) => Promise<void>;
     step: <T>(msg: string, fn: () => Promise<T>) => Promise<T>;
     checkAbort: () => Promise<void>;
 }) => Promise<void>) {
@@ -79,6 +80,12 @@ export async function runInContext(id: string, task: (op: {
         progress: async (val: number, msg?: string) => {
             await checkAbort();
             await updateOperation(id, { progress: val, message: msg });
+        },
+        updateMetadata: async (metadata: any) => {
+            await checkAbort();
+            const currentOp = await prisma.operation.findUnique({ where: { id }, select: { metadata: true } });
+            const newMetadata = { ...(currentOp?.metadata as any || {}), ...metadata };
+            await updateOperation(id, { metadata: newMetadata });
         },
         step: async <T>(msg: string, fn: () => Promise<T>): Promise<T> => {
             await checkAbort();

@@ -4,7 +4,6 @@ import { createOperation } from '@/lib/operations';
 import { executeIngestTask } from '@/lib/tasks/ingest';
 import { executeSynthesizeTask } from '@/lib/tasks/synthesize';
 import { executeTrialsTask } from '@/lib/tasks/trials';
-import { executeHealthTask } from '@/lib/tasks/health';
 
 export async function POST(request: Request) {
     try {
@@ -44,9 +43,6 @@ export async function POST(request: Request) {
                 break;
             case 'SYNC_TRIALS':
                 executeTrialsTask(newOp.id, params).catch(e => console.error('Restart failure:', e));
-                break;
-            case 'SYNC_HEALTH':
-                executeHealthTask(newOp.id).catch(e => console.error('Restart failure:', e));
                 break;
             default:
                 await prisma.operation.update({

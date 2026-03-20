@@ -9,90 +9,78 @@ datasource db {
   extensions = [vector]
 }
 
-model Pathogen {
-  id                    String                  @id @default(uuid())
-  name                  String                  @unique
-  taxonomy              String?
+model MedicalTerm {
+  id                    String                 @id @default(uuid())
+  name                  String                 @unique
+  category              String?
   biology               String?
-  family                String?
+  description           String?
   synthesizedContext    String?
   synthesisUpdatedAt    DateTime?
   synthesisArticleCount Int?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
+  synthesisSources      Json?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   articles              Article[]
   clinicalTrials        ClinicalTrial[]
-  epidemiologyMetrics   EpidemiologyMetric[]
   knowledgeChunks       KnowledgeChunk[]
-  reports               MarketReport[]
-  nameEmbeddings        PathogenNameEmbedding[]
+  metrics               MedicalMetric[]
+  nameEmbeddings        MedicalTermEmbedding[]
   surveillanceAlerts    SurveillanceAlert[]
+  logicalQuestions      LogicalQuestion[]
 }
 
-model EpidemiologyMetric {
-  id         String   @id @default(uuid())
-  pathogenId String
-  source     String
-  indicator  String
-  value      Float
-  unit       String?
-  year       Int
-  location   String
-  createdAt  DateTime @default(now())
-  pathogen   Pathogen @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+model MedicalMetric {
+  id            String      @id @default(uuid())
+  medicalTermId String
+  source        String
+  indicator     String
+  value         Float
+  unit          String?
+  year          Int
+  location      String
+  createdAt     DateTime    @default(now())
+  medicalTerm   MedicalTerm @relation(fields: [medicalTermId], references: [id], onDelete: Cascade)
 }
 
 model SurveillanceAlert {
-  id          String   @id @default(uuid())
-  pathogenId  String
-  source      String
-  title       String
-  description String?
-  url         String?
-  severity    String?
-  publishedAt DateTime
-  createdAt   DateTime @default(now())
-  pathogen    Pathogen @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+  id            String      @id @default(uuid())
+  medicalTermId String
+  source        String
+  title         String
+  description   String?
+  url           String?
+  severity      String?
+  publishedAt   DateTime
+  createdAt     DateTime    @default(now())
+  medicalTerm   MedicalTerm @relation(fields: [medicalTermId], references: [id], onDelete: Cascade)
 }
 
 model Article {
-  id                  String    @id @default(uuid())
+  id                  String      @id @default(uuid())
   pubmedId            String
   pmcId               String?
-  hasFullText         Boolean   @default(false)
+  hasFullText         Boolean     @default(false)
   title               String
   abstractText        String?
   authors             String?
   publicationDate     DateTime?
   countryAffiliations String?
-  pathogenId          String
-  createdAt           DateTime  @default(now())
-  pathogen            Pathogen  @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+  medicalTermId       String
+  createdAt           DateTime    @default(now())
+  medicalTerm         MedicalTerm @relation(fields: [medicalTermId], references: [id], onDelete: Cascade)
 
-  @@unique([pubmedId, pathogenId])
-}
-
-model MarketReport {
-  id               String   @id @default(uuid())
-  pathogenId       String
-  epidemiology     String?
-  populationSize   String?
-  marketPotential  String?
-  investmentGaps   String?
-  vaccineLandscape String?
-  createdAt        DateTime @default(now())
-  pathogen         Pathogen @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+  @@unique([pubmedId, medicalTermId])
 }
 
 model ClinicalTrial {
-  id                    String    @id @default(uuid())
-  nctId                 String    @unique
+  id                    String      @id @default(uuid())
+  nctId                 String      @unique
   title                 String
   phase                 String?
   status                String?
   overallStatus         String?
   interventionType      String?
-  isVaccine             Boolean   @default(false)
   sponsor               String?
   collaborators         String?
   conditions            String?
@@ -104,14 +92,14 @@ model ClinicalTrial {
   primaryOutcomes       String?
   secondaryOutcomes     String?
   interventionDetails   String?
-  resultsPosted         Boolean   @default(false)
+  resultsPosted         Boolean     @default(false)
   startDate             DateTime?
   primaryCompletionDate DateTime?
   completionDate        DateTime?
-  pathogenId            String
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  pathogen              Pathogen  @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+  medicalTermId         String
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  medicalTerm           MedicalTerm @relation(fields: [medicalTermId], references: [id], onDelete: Cascade)
 }
 
 model SearchHistory {
@@ -137,40 +125,42 @@ model Message {
   createdAt      DateTime     @default(now())
   reasoning      String?
   usage          Json?
+  sources        Json?
   diagnostic     Json?
   routingPath    Json?
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 model SemanticCache {
-  id         String                @id @default(uuid())
-  query      String
-  embedding  Unsupported("vector")
-  response   String
-  pathogenId String?
-  createdAt  DateTime              @default(now())
+  id            String                @id @default(uuid())
+  query         String
+  embedding     Unsupported("vector")
+  response      String
+  sources       Json?
+  medicalTermId String?
+  createdAt     DateTime              @default(now())
 }
 
-model PathogenNameEmbedding {
-  id         String                @id @default(uuid())
-  name       String                @unique
-  isAlias    Boolean               @default(false)
-  pathogenId String?
-  embedding  Unsupported("vector")
-  usageCount Int                   @default(0)
-  createdAt  DateTime              @default(now())
-  pathogen   Pathogen?             @relation(fields: [pathogenId], references: [id])
+model MedicalTermEmbedding {
+  id            String                @id @default(uuid())
+  name          String                @unique
+  isAlias       Boolean               @default(false)
+  medicalTermId String?
+  embedding     Unsupported("vector")
+  usageCount    Int                   @default(0)
+  createdAt     DateTime              @default(now())
+  medicalTerm   MedicalTerm?          @relation(fields: [medicalTermId], references: [id])
 }
 
 model KnowledgeChunk {
-  id         String                @id @default(uuid())
-  pathogenId String
-  sourceType String
-  sourceId   String
-  content    String
-  embedding  Unsupported("vector")
-  createdAt  DateTime              @default(now())
-  pathogen   Pathogen              @relation(fields: [pathogenId], references: [id], onDelete: Cascade)
+  id            String                @id @default(uuid())
+  medicalTermId String
+  sourceType    String
+  sourceId      String
+  content       String
+  embedding     Unsupported("vector")
+  createdAt     DateTime              @default(now())
+  medicalTerm   MedicalTerm           @relation(fields: [medicalTermId], references: [id], onDelete: Cascade)
 }
 
 model Operation {
@@ -196,4 +186,17 @@ model OperationLog {
   timestamp   DateTime  @default(now())
   durationMs  Int?
   operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+}
+
+model LogicalQuestion {
+  id             String      @id @default(uuid())
+  medicalTermId  String
+  question       String
+  category       String?
+  searchKeywords String?
+  answer         String?
+  answered       Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  medicalTerm    MedicalTerm @relation(fields: [medicalTermId], references: [id], onDelete: Cascade)
 }

@@ -1,6 +1,6 @@
 # Production Deployment Guide (AWS EC2)
 
-This guide explains how to secure and deploy Pathogen 360 in a production environment.
+This guide explains how to secure and deploy Medical 360 in a production environment.
 
 ## 1. Managing Secrets & API Keys
 

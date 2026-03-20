@@ -12,12 +12,12 @@ export async function POST() {
                 await ctx.log("Initiating full system purge...");
 
                 await ctx.step("Delete KnowledgeChunks", () => prisma.knowledgeChunk.deleteMany({}));
-                await ctx.step("Delete EpidemiologyMetrics", () => prisma.epidemiologyMetric.deleteMany({}));
+                await ctx.step("Delete MedicalMetrics", () => prisma.medicalMetric.deleteMany({}));
                 await ctx.step("Delete SurveillanceAlerts", () => prisma.surveillanceAlert.deleteMany({}));
-                await ctx.step("Delete ClinicalTrials", () => (prisma as any).clinicalTrial.deleteMany({}));
-                await ctx.step("Delete MarketReports", () => prisma.marketReport.deleteMany({}));
+                await ctx.step("Delete ClinicalTrials", () => prisma.clinicalTrial.deleteMany({}));
                 await ctx.step("Delete Articles", () => prisma.article.deleteMany({}));
-                await ctx.step("Delete Pathogens", () => prisma.pathogen.deleteMany({}));
+                await ctx.step("Delete MedicalTermEmbeddings", () => prisma.medicalTermEmbedding.deleteMany({}));
+                await ctx.step("Delete MedicalTerms", () => prisma.medicalTerm.deleteMany({}));
 
                 await ctx.log("Clearing diagnostic and interactive data...");
                 await ctx.step("Delete Messages", () => prisma.message.deleteMany({}));

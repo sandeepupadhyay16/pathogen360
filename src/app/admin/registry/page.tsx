@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Database, Plus, Trash2, Play, RefreshCw, Search, ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface RegistryData {
-    pathogens: string[];
+    medicalTerms: string[];
     defaultScanDepth: number;
 }
 
@@ -22,10 +22,10 @@ interface JobStatus {
     finishedAt: string | null;
 }
 
-export default function PathogenRegistryPage() {
+export default function MedicalTermRegistryPage() {
     const [registry, setRegistry] = useState<RegistryData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [newPathogen, setNewPathogen] = useState('');
+    const [newMedicalTerm, setNewMedicalTerm] = useState('');
     const [search, setSearch] = useState('');
     const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
     const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -87,20 +87,20 @@ export default function PathogenRegistryPage() {
     };
 
     const handleAdd = async () => {
-        if (!newPathogen.trim()) return;
-        const names = newPathogen.split(',').map(n => n.trim()).filter(Boolean);
+        if (!newMedicalTerm.trim()) return;
+        const names = newMedicalTerm.split(',').map(n => n.trim()).filter(Boolean);
         try {
             const res = await fetch('/api/admin/registry', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pathogens: names })
+                body: JSON.stringify({ medicalTerms: names })
             });
             const data = await res.json();
             setStatusMsg({ type: 'success', text: data.message });
-            setNewPathogen('');
+            setNewMedicalTerm('');
             fetchRegistry();
         } catch {
-            setStatusMsg({ type: 'error', text: 'Failed to add pathogen.' });
+            setStatusMsg({ type: 'error', text: 'Failed to add medical term.' });
         }
     };
 
@@ -109,14 +109,14 @@ export default function PathogenRegistryPage() {
             const res = await fetch('/api/admin/registry', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pathogen: name })
+                body: JSON.stringify({ medicalTerm: name })
             });
             if (res.ok) {
                 setStatusMsg({ type: 'info', text: `Removed "${name}" from registry.` });
                 fetchRegistry();
             }
         } catch {
-            setStatusMsg({ type: 'error', text: 'Failed to remove pathogen.' });
+            setStatusMsg({ type: 'error', text: 'Failed to remove medical term.' });
         }
     };
 
@@ -167,7 +167,7 @@ export default function PathogenRegistryPage() {
 
     const isRunning = jobStatus?.running;
 
-    const filtered = registry?.pathogens.filter(
+    const filtered = registry?.medicalTerms.filter(
         p => p.toLowerCase().includes(search.toLowerCase())
     ) || [];
 
@@ -190,9 +190,9 @@ export default function PathogenRegistryPage() {
                             <Database className="w-8 h-8 text-emerald-700" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-extrabold text-slate-800">Pathogen Registry</h1>
+                            <h1 className="text-3xl font-extrabold text-slate-800">Medical Term Registry</h1>
                             <p className="text-slate-500 text-sm mt-1">
-                                Master list of {registry?.pathogens.length || 0} pathogens • Persists independent of database
+                                Master list of {registry?.medicalTerms.length || 0} terms • Persists independent of database
                             </p>
                         </div>
                     </div>
@@ -217,7 +217,7 @@ export default function PathogenRegistryPage() {
                     <h2 className="text-lg font-bold text-slate-800">Knowledge Base Actions</h2>
                     <p className="text-sm text-slate-500">
                         Rebuild the entire knowledge base from the registry below. Runs in background — you can navigate away safely.
-                        Resumable — already-ingested pathogens are skipped automatically.
+                        Resumable — already-ingested medical terms are skipped automatically.
                     </p>
                     <div className="flex gap-3">
                         <button
@@ -256,7 +256,7 @@ export default function PathogenRegistryPage() {
                                 />
                             </div>
                             <div className="flex justify-between text-xs text-slate-500">
-                                <span>{jobStatus.progress}% complete • {jobStatus.completed}/{jobStatus.total} pathogens</span>
+                                <span>{jobStatus.progress}% complete • {jobStatus.completed}/{jobStatus.total} medical terms</span>
                                 <span>
                                     {jobStatus.totalArticles} articles saved
                                     {jobStatus.skipped > 0 && ` • ${jobStatus.skipped} skipped`}
@@ -276,21 +276,21 @@ export default function PathogenRegistryPage() {
                     )}
                 </div>
 
-                {/* Add Pathogen */}
+                {/* Add Medical Term */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                     <h2 className="text-lg font-bold text-slate-800 mb-3">Add to Registry</h2>
                     <div className="flex gap-3">
                         <input
                             type="text"
-                            value={newPathogen}
-                            onChange={e => setNewPathogen(e.target.value)}
+                            value={newMedicalTerm}
+                            onChange={e => setNewMedicalTerm(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                            placeholder="Enter pathogen name (comma-separated for multiple)"
+                            placeholder="Enter medical term name (comma-separated for multiple)"
                             className="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                         />
                         <button
                             onClick={handleAdd}
-                            disabled={!newPathogen.trim()}
+                            disabled={!newMedicalTerm.trim()}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-medium transition disabled:bg-blue-300 flex items-center gap-2 text-sm"
                         >
                             <Plus className="w-4 h-4" /> Add
@@ -302,7 +302,7 @@ export default function PathogenRegistryPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-bold text-slate-800">
-                            Registered Pathogens ({registry?.pathogens.length || 0})
+                            Registered Medical Terms ({registry?.medicalTerms.length || 0})
                         </h2>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -335,7 +335,7 @@ export default function PathogenRegistryPage() {
                     </div>
 
                     {filtered.length === 0 && search && (
-                        <p className="text-center text-slate-400 text-sm py-8">No pathogens match &quot;{search}&quot;</p>
+                        <p className="text-center text-slate-400 text-sm py-8">No medical terms match &quot;{search}&quot;</p>
                     )}
                 </div>
             </div>

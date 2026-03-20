@@ -1,6 +1,6 @@
 /**
  * ClinicalTrials.gov API v2 Integration
- * Searches for clinical trials for a given pathogen/condition and returns structured data.
+ * Searches for clinical trials for a given medical term/condition and returns structured data.
  * Now captures expanded fields: descriptions, eligibility, outcomes, enrollment, and study design.
  * API Docs: https://clinicaltrials.gov/data-api/api
  */
@@ -14,7 +14,6 @@ export interface ClinicalTrialData {
     status: string | null;
     overallStatus: string | null;
     interventionType: string | null;
-    isVaccine: boolean;
     sponsor: string | null;
     collaborators: string | null;
     conditions: string | null;
@@ -102,28 +101,15 @@ function formatStudyDesign(design: any): string | null {
     return parts.length > 0 ? parts.join(', ') : null;
 }
 
-export async function searchClinicalTrials(pathogenName: string, maxResults = 50): Promise<ClinicalTrialData[]> {
+export async function searchClinicalTrials(medicalTerm: string, maxResults = 50): Promise<ClinicalTrialData[]> {
     const url = new URL(CT_API_BASE);
-    url.searchParams.set('query.cond', pathogenName);
-    url.searchParams.set('query.term', `${pathogenName} vaccine OR treatment OR therapy`);
+    url.searchParams.set('query.cond', medicalTerm);
     url.searchParams.set('pageSize', String(Math.min(maxResults, 100)));
     url.searchParams.set('format', 'json');
-    // Request expanded fields including descriptions, eligibility, outcomes, and design
-    url.searchParams.set('fields', [
-        'NCTId', 'BriefTitle', 'OfficialTitle', 'Phase', 'OverallStatus',
-        'BriefSummary', 'DetailedDescription', 'EligibilityCriteria',
-        'EnrollmentCount', 'EnrollmentType',
-        'LeadSponsorName', 'CollaboratorName',
-        'Condition', 'InterventionType', 'InterventionName', 'InterventionDescription',
-        'PrimaryOutcomeMeasure', 'PrimaryOutcomeTimeFrame', 'PrimaryOutcomeDescription',
-        'SecondaryOutcomeMeasure', 'SecondaryOutcomeTimeFrame', 'SecondaryOutcomeDescription',
-        'StudyType', 'DesignAllocation', 'DesignInterventionModel', 'DesignPrimaryPurpose', 'DesignMaskingInfo',
-        'StartDate', 'PrimaryCompletionDate', 'CompletionDate',
-        'ResultsFirstPostDate', 'LocationCountry'
-    ].join(','));
+    // Request everything (default) to avoid 400 errors on invalid field names
 
     const response = await fetch(url.toString(), {
-        headers: { 'User-Agent': 'Pathogen360/1.0 (research tool)' }
+        headers: { 'User-Agent': 'Medical360/1.0 (research tool)' }
     });
 
     if (!response.ok) {
@@ -174,7 +160,6 @@ export async function searchClinicalTrials(pathogenName: string, maxResults = 50
             status: statusMod.overallStatus || null,
             overallStatus: statusMod.overallStatus || null,
             interventionType: primaryType,
-            isVaccine: isVaccineIntervention(interventions),
             sponsor: sponsors.leadSponsor?.name || null,
             collaborators: collabs.length > 0 ? collabs.join(', ') : null,
             conditions: conditions.join(', ') || null,
@@ -194,16 +179,14 @@ export async function searchClinicalTrials(pathogenName: string, maxResults = 50
     }).filter((t: ClinicalTrialData) => t.nctId); // Filter out any with no NCT ID
 }
 
-export function formatClinicalTrialsContext(pathogenName: string, trials: any[]): { context: string, sources: any[], visuals: any } {
+export function formatClinicalTrialsContext(medicalTerm: string, trials: any[]): { context: string, sources: any[], visuals: any } {
     if (!trials || trials.length === 0) {
         return { context: '', sources: [], visuals: null };
     }
 
     const sources: any[] = [];
     const rawPhaseMap: Record<string, number> = {};
-    let vaccineCount = 0;
     let activeCount = 0;
-    const lateStageVaccines: string[] = [];
 
     // Normalization map for phases
     const normalizePhase = (phase: string | null): string => {
@@ -216,12 +199,8 @@ export function formatClinicalTrialsContext(pathogenName: string, trials: any[])
     for (const t of trials) {
         const phase = normalizePhase(t.phase);
         rawPhaseMap[phase] = (rawPhaseMap[phase] || 0) + 1;
-        if (t.isVaccine) vaccineCount++;
         const s = (t.overallStatus || '').toUpperCase();
         if (['RECRUITING', 'ACTIVE_NOT_RECRUITING', 'NOT_YET_RECRUITING', 'ENROLLING_BY_INVITATION'].includes(s)) activeCount++;
-        if (t.isVaccine && t.phase && (t.phase.includes('Phase 2') || t.phase.includes('Phase 3') || t.phase.includes('Phase 4'))) {
-            lateStageVaccines.push(`${t.title} (${t.phase}, ${t.overallStatus}, Sponsor: ${t.sponsor || 'Unknown'}, Enrollment: ${t.enrollment || 'N/A'})`);
-        }
     }
 
     const phaseBreakdown = Object.entries(rawPhaseMap).map(([k, v]) => `${k}: ${v}`).join(', ');
@@ -234,27 +213,18 @@ export function formatClinicalTrialsContext(pathogenName: string, trials: any[])
     });
     const statusBreakdown = Object.entries(statusMap).map(([k, v]) => `${k}: ${v}`).join(', ');
 
-    const vaccineHorizon = lateStageVaccines.length > 0
-        ? `YES — ${lateStageVaccines.length} late-stage vaccine trial(s): ${lateStageVaccines.slice(0, 3).join('; ')}`
-        : (vaccineCount > 0 ? `EARLY STAGE — ${vaccineCount} early-stage vaccine trial(s) active` : 'NO vaccine trials found');
-
     const topTrials = trials.slice(0, 50).map((t: any) => {
-        let entry = `- [Trial: ${t.nctId}] ${t.title}\n  Phase: ${t.phase || 'N/A'} | Status: ${t.overallStatus || 'N/A'} | Vaccine: ${t.isVaccine ? 'Yes' : 'No'} | Sponsor: ${t.sponsor || 'N/A'} | Enrollment: ${t.enrollment || 'N/A'} | Start: ${t.startDate ? new Date(t.startDate).toLocaleDateString() : 'N/A'}`;
-        if (t.description) entry += `\n  Description: ${t.description.substring(0, 300)}${t.description.length > 300 ? '...' : ''}`;
-        if (t.primaryOutcomes) entry += `\n  Primary Outcomes: ${t.primaryOutcomes.substring(0, 200)}${t.primaryOutcomes.length > 200 ? '...' : ''}`;
-        if (t.interventionDetails) entry += `\n  Interventions: ${t.interventionDetails.substring(0, 200)}${t.interventionDetails.length > 200 ? '...' : ''}`;
+        let entry = `- [Trial: ${t.nctId}] ${t.title}\n  Phase: ${t.phase || 'N/A'} | Status: ${t.overallStatus || 'N/A'} | Sponsor: ${t.sponsor || 'N/A'} | Enrollment: ${t.enrollment || 'N/A'} | Start: ${t.startDate ? new Date(t.startDate).toLocaleDateString() : 'N/A'}`;
         return entry;
     }).join('\n');
 
     const context = `
 [CLINICAL TRIALS DATA — sourced from ClinicalTrials.gov]
-Pathogen: ${pathogenName}
+Medical Term: ${medicalTerm}
 Total Trials Records in DB: ${trials.length}
 Currently Active Trials: ${activeCount}
-Vaccine Trials: ${vaccineCount}
 Phase Breakdown: ${phaseBreakdown}
 Status Breakdown: ${statusBreakdown}
-Vaccine on Horizon: ${vaccineHorizon}
 
 Detailed Trial Listings (most recent 50):
 ${topTrials}
@@ -263,7 +233,7 @@ ${topTrials}
     sources.push({
         id: 'clinicaltrials-gov',
         type: 'clinical_trials',
-        title: `ClinicalTrials.gov — ${trials.length} trials for ${pathogenName}`,
+        title: `ClinicalTrials.gov — ${trials.length} trials for ${medicalTerm}`,
         date: new Date()
     });
 
@@ -285,11 +255,7 @@ ${topTrials}
             { name: 'Active', value: activeCount },
             { name: 'Completed/Other', value: trials.length - activeCount }
         ],
-        vaccineStats: [
-            { name: 'Vaccine', value: vaccineCount },
-            { name: 'Other Interventions', value: trials.length - vaccineCount }
-        ],
-        summaryText: `${pathogenName} has ${trials.length} total trial records, with ${activeCount} currently active. The pipeline is heavily focused on ${vaccineCount} vaccine-related studies, with a significant distribution in ${phaseBreakdown}.`,
+        summaryText: `${medicalTerm} has ${trials.length} total trial records, with ${activeCount} currently active. The clinical landscape shows a significant distribution in ${phaseBreakdown}.`,
         tables: {
             phaseDistribution: trialPhases.map(p => ({ "Phase": p.name, "Count": p.value })),
             trialActivity: [

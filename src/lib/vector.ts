@@ -2,47 +2,53 @@ import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { embedText } from './llm';
 
-export async function findSemanticCache(query: string, pathogenId?: string) {
+export async function findSemanticCache(query: string, medicalTermId?: string): Promise<{ response: string; sources: any[] } | null> {
     try {
         const queryEmbedding = await embedText(query);
         const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
-        const pathogenFilter = pathogenId
-            ? Prisma.sql`AND "pathogenId" = ${pathogenId}`
+        const medicalTermFilter = medicalTermId
+            ? Prisma.sql`AND "medicalTermId" = ${medicalTermId}`
             : Prisma.empty;
 
-        // Search for cache hits with similarity > 0.95
+        // Search for cache hits with similarity > 0.98
         const results = await prisma.$queryRaw`
-            SELECT "response", "pathogenId", 1 - ("embedding" <=> ${embeddingStr}::vector) as similarity
+            SELECT "response", "sources", "medicalTermId", 1 - ("embedding" <=> ${embeddingStr}::vector) as similarity
             FROM "SemanticCache"
             WHERE 1 - ("embedding" <=> ${embeddingStr}::vector) > 0.98
-            ${pathogenFilter}
+            ${medicalTermFilter}
             ORDER BY similarity DESC
             LIMIT 1
         ` as any[];
 
-        return results.length > 0 ? results[0].response : null;
+        if (results.length > 0) {
+            return {
+                response: results[0].response,
+                sources: results[0].sources || []
+            };
+        }
+        return null;
     } catch (error) {
         console.error("Semantic cache lookup failed:", error);
         return null;
     }
 }
 
-export async function storeSemanticCache(query: string, response: string, pathogenId?: string) {
+export async function storeSemanticCache(query: string, response: string, sources: any[], medicalTermId?: string) {
     try {
         const queryEmbedding = await embedText(query);
         const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
         await prisma.$executeRaw`
-            INSERT INTO "SemanticCache" ("id", "query", "embedding", "response", "pathogenId", "createdAt")
-            VALUES (gen_random_uuid(), ${query}, ${embeddingStr}::vector, ${response}, ${pathogenId}, NOW())
+            INSERT INTO "SemanticCache" ("id", "query", "embedding", "response", "sources", "medicalTermId", "createdAt")
+            VALUES (gen_random_uuid(), ${query}, ${embeddingStr}::vector, ${response}, ${JSON.stringify(sources)}::jsonb, ${medicalTermId}, NOW())
         `;
     } catch (error) {
         console.error("Storing semantic cache failed:", error);
     }
 }
 
-export async function searchKnowledgeChunks(query: string, pathogenId: string, limit: number = 10) {
+export async function searchKnowledgeChunks(query: string, medicalTermId: string, limit: number = 10) {
     try {
         const queryEmbedding = await embedText(query);
         const embeddingStr = `[${queryEmbedding.join(',')}]`;
@@ -50,7 +56,7 @@ export async function searchKnowledgeChunks(query: string, pathogenId: string, l
         const results = await prisma.$queryRaw`
             SELECT "content", "sourceType", "sourceId", 1 - ("embedding" <=> ${embeddingStr}::vector) as similarity
             FROM "KnowledgeChunk"
-            WHERE "pathogenId" = ${pathogenId}
+            WHERE "medicalTermId" = ${medicalTermId}
             ORDER BY similarity DESC
             LIMIT ${limit}
         ` as any[];

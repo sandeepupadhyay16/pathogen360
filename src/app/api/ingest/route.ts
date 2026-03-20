@@ -5,9 +5,9 @@ import { executeIngestTask } from '@/lib/tasks/ingest';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { pathogenName, scope = 'pathogen' } = body;
+        const { medicalTermName, scope = 'medical_term' } = body;
 
-        const target = scope === 'all' ? 'All Registry' : (scope === 'family' ? `Family: ${pathogenName}` : pathogenName);
+        const target = scope === 'all' ? 'All Registry' : (scope === 'category' ? `Category: ${medicalTermName}` : medicalTermName);
         const operation = await createOperation('INGEST', target, body);
 
         // Start background task - fire and forget in Node.js

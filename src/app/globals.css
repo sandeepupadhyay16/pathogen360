@@ -25,25 +25,29 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Custom Prose Styles for Chat Tables */
+/* Custom Scrollbar Utility */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #94a3b8; /* Darker slate for visibility */
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b;
+}
+
 .prose {
-  overflow-x: auto;
   width: 100% !important;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-}
-
-.prose::-webkit-scrollbar {
-  height: 6px;
-}
-
-.prose::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.prose::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 20px;
 }
 
 .prose table {
@@ -85,22 +89,32 @@ body {
   vertical-align: top;
 }
 
-/* Prevent sensitive columns from wrapping or squeezing too much */
-.prose td:first-child,
-.prose td:nth-child(2),
-.prose td:nth-child(3),
-.prose td:nth-child(4),
-.prose td:nth-child(5) {
-  white-space: nowrap;
+/* Allow columns to wrap for better fit */
+.prose td {
+  min-width: 120px;
+  white-space: normal !important; /* Allow wrapping by default */
 }
 
-/* Allow the "TITLE" or detail columns to wrap but maintain minimum width */
-.prose td:nth-child(2) {
-  white-space: normal;
-  min-width: 200px;
-  max-width: 350px;
-  font-weight: 600;
+/* Specific narrow columns */
+.prose td:nth-child(2) { /* PHASE */
+  min-width: 60px;
+  max-width: 80px;
+  text-align: center;
+}
+
+.prose td:nth-child(3) { /* STATUS */
+  min-width: 100px;
+}
+
+/* Wider detail columns */
+.prose td:first-child { /* CANDIDATE */
+  font-weight: 700;
   color: #0f172a;
+  min-width: 180px;
+}
+
+.prose td:last-child { /* KEY DATA */
+  min-width: 250px;
 }
 
 .prose tr:nth-child(even) {

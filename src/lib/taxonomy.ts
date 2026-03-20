@@ -1,64 +1,47 @@
 /**
- * Unified taxonomy utility for Pathogen360
- * This ensures consistent classification of pathogens into Viral, Bacterial, Fungal, and Parasitic types
- * based on their taxonomic family name.
+ * Unified taxonomy and classification utility for Medical360
+ * This ensures consistent classification of medical terms into Biological, Pharmacological, Clinical, etc.
  */
 
-export type PathogenType = 'VIRAL' | 'BACTERIAL' | 'FUNGAL' | 'PARASITIC' | 'OTHER';
+export type MedicalTermType = 'BIOLOGICAL' | 'PHARMACOLOGICAL' | 'CLINICAL' | 'VIRAL' | 'BACTERIAL' | 'OTHER';
 
 /**
- * Resolves the pathogen type from a family name.
- * Uses a combination of suffix matching and keyword detection.
+ * Resolves the medical term category from a name or inferred category.
+ * This is a foundational classifier.
  */
-export const getPathogenType = (family: string | null): PathogenType => {
-    if (!family) return 'OTHER';
-    const f = family.toLowerCase();
+export const getMedicalTermType = (category: string | null): MedicalTermType => {
+    if (!category) return 'OTHER';
+    const c = category.toLowerCase();
 
-    // 1. Viral Detection (Highest Priority)
-    if (f.endsWith('viridae') || f.includes('virus')) {
+    if (c.includes('drug') || c.includes('molecule') || c.includes('pharmacology')) {
+        return 'PHARMACOLOGICAL';
+    }
+
+    if (c.includes('disease') || c.includes('condition') || c.includes('syndrome')) {
+        return 'CLINICAL';
+    }
+
+    if (c.endsWith('viridae') || c.includes('virus')) {
         return 'VIRAL';
     }
 
-    // 2. Fungal Detection
-    // Matches specific families known to be fungal and general keywords
-    const FUNGAL_FAMILIES = [
-        'debaryomycetaceae', 'aspergillaceae', 'tremellaceae', 
-        'ajellomycetaceae', 'onygenaceae', 'pneumocystidaceae',
-        'fungi', 'mycete', 'saccharomycet'
-    ];
-    if (FUNGAL_FAMILIES.some(x => f.includes(x))) {
-        return 'FUNGAL';
-    }
-
-    // 3. Parasitic Detection
-    // Matches known protozoan and helminth families
-    const PARASITE_KEYWORDS = [
-        'plasmodiidae', 'sarcocystidae', 'trypanosomatidae', 
-        'hexamitidae', 'entamoebidae', 'cryptosporidiidae', 
-        'schistosomatidae', 'ascarididae', 'taeniidae', 'trichinellidae'
-    ];
-    if (PARASITE_KEYWORDS.some(x => f.includes(x))) {
-        return 'PARASITIC';
-    }
-
-    // 4. Bacterial Detection
-    // Matches 'aceae' suffix (standard for bacteria) and common bacterial keywords
-    if (f.endsWith('aceae') || f.includes('bacteria') || f.includes('coccus') || f.includes('bacillus')) {
-        return 'BACTERIAL';
+    if (c.endsWith('aceae') || c.includes('bacteria') || c.includes('microbe')) {
+        return 'BIOLOGICAL';
     }
 
     return 'OTHER';
 };
 
 /**
- * Returns a user-friendly label with emoji for a pathogen type.
+ * Returns a user-friendly label with emoji for a medical term type.
  */
-export const getPathogenTypeLabel = (type: PathogenType): string => {
+export const getMedicalTermTypeLabel = (type: MedicalTermType): string => {
     switch (type) {
+        case 'PHARMACOLOGICAL': return '💊 Pharmaceutical';
+        case 'CLINICAL': return '🏥 Clinical';
         case 'VIRAL': return '🦠 Viral';
+        case 'BIOLOGICAL': return '🧬 Biological';
         case 'BACTERIAL': return '🧫 Bacterial';
-        case 'FUNGAL': return '🍄 Fungal';
-        case 'PARASITIC': return '🪱 Parasitic';
-        default: return '❓ Other';
+        default: return '🔍 Research';
     }
 };

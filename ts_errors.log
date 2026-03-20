@@ -1,0 +1,90 @@
+.next/dev/types/validator.ts(252,31): error TS2344: Type 'typeof import("/home/supadhyay/Antigravity/Medical360/src/app/api/admin/report/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/report/[id]">'.
+  Types of property 'DELETE' are incompatible.
+    Type '(request: Request, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ success: boolean; message: string; }> | NextResponse<{ error: any; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/dev/types/validator.ts(279,31): error TS2344: Type 'typeof import("/home/supadhyay/Antigravity/Medical360/src/app/api/clinical-trials/[pathogenId]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/clinical-trials/[pathogenId]">'.
+  Types of property 'GET' are incompatible.
+    Type '(_request: Request, { params }: { params: { pathogenId: string; }; }) => Promise<NextResponse<{ trials: any; summary: { totalTrials: any; vaccineTrials: any; activeTrials: any; phaseCounts: Record<string, number>; vaccineOnHorizon: boolean; lateStageVaccineCount: any; }; }> | NextResponse<...>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ pathogenId: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ pathogenId: string; }>; }' is not assignable to type '{ params: { pathogenId: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'pathogenId' is missing in type 'Promise<{ pathogenId: string; }>' but required in type '{ pathogenId: string; }'.
+.next/types/validator.ts(252,31): error TS2344: Type 'typeof import("/home/supadhyay/Antigravity/Medical360/src/app/api/admin/report/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/admin/report/[id]">'.
+  Types of property 'DELETE' are incompatible.
+    Type '(request: Request, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ success: boolean; message: string; }> | NextResponse<{ error: any; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(279,31): error TS2344: Type 'typeof import("/home/supadhyay/Antigravity/Medical360/src/app/api/clinical-trials/[pathogenId]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/clinical-trials/[pathogenId]">'.
+  Types of property 'GET' are incompatible.
+    Type '(_request: Request, { params }: { params: { pathogenId: string; }; }) => Promise<NextResponse<{ trials: any; summary: { totalTrials: any; vaccineTrials: any; activeTrials: any; phaseCounts: Record<string, number>; vaccineOnHorizon: boolean; lateStageVaccineCount: any; }; }> | NextResponse<...>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ pathogenId: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ pathogenId: string; }>; }' is not assignable to type '{ params: { pathogenId: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'pathogenId' is missing in type 'Promise<{ pathogenId: string; }>' but required in type '{ pathogenId: string; }'.
+scripts/check-db.ts(6,37): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+scripts/check-db.ts(7,52): error TS7006: Parameter 'p' implicitly has an 'any' type.
+scripts/prisma-test.ts(5,30): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+scripts/test-resolution.ts(1,10): error TS2305: Module '"../src/lib/pathogen-resolver"' has no exported member 'pathogenResolver'.
+scripts/test-resolution.ts(40,41): error TS2339: Property 'pathogenNameEmbedding' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+scripts/test-single.ts(1,10): error TS2305: Module '"../src/lib/pathogen-resolver"' has no exported member 'pathogenResolver'.
+scripts/verify-routing-fix.ts(2,10): error TS2305: Module '"../src/lib/pathogen-resolver"' has no exported member 'pathogenResolver'.
+scripts/verify-routing-fix.ts(20,38): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+scripts/verify-routing-fix.ts(38,79): error TS7006: Parameter 'word' implicitly has an 'any' type.
+scripts/verify-routing-fix.ts(58,22): error TS2353: Object literal may only specify known properties, and 'pathogenId' does not exist in type 'ClinicalTrialWhereInput'.
+src/app/admin/page.tsx(737,65): error TS2367: This comparison appears to be unintentional because the types '"BIOLOGICAL" | "PHARMACOLOGICAL" | "CLINICAL" | "OTHER"' and '"PARASITIC"' have no overlap.
+src/app/admin/page.tsx(738,69): error TS2367: This comparison appears to be unintentional because the types '"BIOLOGICAL" | "PHARMACOLOGICAL" | "CLINICAL" | "OTHER"' and '"FUNGAL"' have no overlap.
+src/app/admin/page.tsx(742,69): error TS2367: This comparison appears to be unintentional because the types '"BIOLOGICAL" | "PHARMACOLOGICAL" | "CLINICAL" | "OTHER"' and '"PARASITIC"' have no overlap.
+src/app/admin/page.tsx(743,73): error TS2367: This comparison appears to be unintentional because the types '"BIOLOGICAL" | "PHARMACOLOGICAL" | "CLINICAL" | "OTHER"' and '"FUNGAL"' have no overlap.
+src/app/admin/page.tsx(815,52): error TS2304: Cannot find name 'setPathogenToDelete'.
+src/app/api/admin/backfill-families/route.ts(12,34): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/backfill-families/route.ts(13,32): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/backfill-families/route.ts(25,48): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/backfill-families/route.ts(51,25): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/backfill-families/route.ts(51,63): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/backfill-families/route.ts(56,38): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/bulk-ingest/route.ts(110,21): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/bulk-ingest/route.ts(110,59): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/bulk-ingest/route.ts(138,33): error TS2353: Object literal may only specify known properties, and 'pubmedId_pathogenId' does not exist in type 'ArticleWhereUniqueInput'.
+src/app/api/admin/bulk-ingest/route.ts(140,49): error TS2552: Cannot find name 'pathogen'. Did you mean 'pathogenId'?
+src/app/api/admin/bulk-ingest/route.ts(161,33): error TS2353: Object literal may only specify known properties, and 'pathogenId' does not exist in type '(Without<ArticleCreateInput, ArticleUncheckedCreateInput> & ArticleUncheckedCreateInput) | (Without<...> & ArticleCreateInput)'.
+src/app/api/admin/bulk-ingest/route.ts(161,45): error TS2552: Cannot find name 'pathogen'. Did you mean 'pathogenId'?
+src/app/api/chat/route.ts(4,10): error TS2305: Module '"@/lib/context"' has no exported member 'buildPathogenContext'.
+src/app/api/chat/route.ts(4,32): error TS2724: '"@/lib/context"' has no exported member named 'buildAggregateContext'. Did you mean 'buildAggregateMedicalContext'?
+src/app/api/chat/route.ts(5,10): error TS2300: Duplicate identifier 'findSemanticCache'.
+src/app/api/chat/route.ts(5,29): error TS2300: Duplicate identifier 'storeSemanticCache'.
+src/app/api/chat/route.ts(5,49): error TS2300: Duplicate identifier 'searchKnowledgeChunks'.
+src/app/api/chat/route.ts(6,10): error TS2300: Duplicate identifier 'findSemanticCache'.
+src/app/api/chat/route.ts(6,29): error TS2300: Duplicate identifier 'storeSemanticCache'.
+src/app/api/chat/route.ts(6,49): error TS2300: Duplicate identifier 'searchKnowledgeChunks'.
+src/app/api/chat/route.ts(7,10): error TS2305: Module '"@/lib/pathogen-resolver"' has no exported member 'pathogenResolver'.
+src/app/api/chat/route.ts(146,87): error TS7006: Parameter 'word' implicitly has an 'any' type.
+src/app/api/chat/route.ts(231,20): error TS2339: Property 'family' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/chat/route.ts(232,20): error TS2339: Property 'taxonomy' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/chat/route.ts(249,50): error TS2339: Property 'family' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/chat/route.ts(249,62): error TS2339: Property 'taxonomy' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/medical-terms-old/search/route.ts(16,40): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/medical-terms-old/search/route.ts(34,43): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/app/api/medical-terms-old/search/route.ts(54,70): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/app/api/medical-terms-old/synthesized/route.ts(6,40): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/search/page.tsx(312,78): error TS2339: Property 'matchedMedicalTerm' does not exist on type 'Message'.
+src/app/search/page.tsx(315,24): error TS2339: Property 'unrecognizedMedicalTerm' does not exist on type 'Message'.
+src/app/search/page.tsx(318,88): error TS2339: Property 'unrecognizedMedicalTerm' does not exist on type 'Message'.
+src/app/search/page.tsx(321,57): error TS2339: Property 'unrecognizedMedicalTerm' does not exist on type 'Message'.
+src/app/search/page.tsx(325,39): error TS2339: Property 'unrecognizedMedicalTerm' does not exist on type 'Message'.
+src/app/search/page.tsx(382,24): error TS2304: Cannot find name 'ArrowRight'.
+src/components/DiagnosticFlowchart.tsx(108,27): error TS2339: Property 'durationMs' does not exist on type '{ stepId: string; label: string; status: string; value: string; details?: string | undefined; metadata?: Record<string, any> | undefined; }'.
+src/components/DiagnosticFlowchart.tsx(110,31): error TS2339: Property 'durationMs' does not exist on type '{ stepId: string; label: string; status: string; value: string; details?: string | undefined; metadata?: Record<string, any> | undefined; }'.
+src/lib/report-service.ts(5,35): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/report-service.ts(102,33): error TS2339: Property 'marketReport' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/report-service.ts(114,22): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/tasks/health.ts(16,20): error TS2339: Property 'epidemiologyMetric' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/tasks/health.ts(17,20): error TS2339: Property 'epidemiologyMetric' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/tasks/health.ts(18,38): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/lib/tasks/health.ts(20,60): error TS2353: Object literal may only specify known properties, and 'pathogenId' does not exist in type 'SurveillanceAlertWhereInput'.
+src/lib/tasks/health.ts(22,37): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/lib/tasks/health.ts(35,40): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.

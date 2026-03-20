@@ -1,13 +1,11 @@
 import { generateLLMResponse, embedText, stripLLMChatter } from './llm';
-import { fetchWhoMetrics, WhoMetric } from './who';
-import { fetchCdcAlerts, SurveillanceAlert } from './cdc';
 import { prisma } from './prisma';
 
 const BATCH_SIZE = 15;
 const MAX_BATCHES_BEFORE_RECURSION = 10;
-const ARTICLE_CHUNK_SIZE = 8000; // Increased slightly
-const LONG_ARTICLE_THRESHOLD = 4000; // Increased slightly
-const CONCURRENCY_LIMIT = 5; // Process 5 LLM/Embedding requests at a time
+const ARTICLE_CHUNK_SIZE = 8000;
+const LONG_ARTICLE_THRESHOLD = 4000;
+const CONCURRENCY_LIMIT = 5;
 
 /**
  * Helper for concurrency control
@@ -32,7 +30,7 @@ async function parallelMap<T, R>(items: T[], limit: number, fn: (item: T, index:
  * Summarizes a single article based on its age (temporal fidelity).
  */
 async function summarizeArticle(
-    pathogenName: string,
+    medicalTerm: string,
     article: { pubmedId: string; title: string; abstractText: string | null; publicationDate?: Date | null },
     fidelity: 'high' | 'balanced' | 'aggressive'
 ): Promise<string> {
@@ -42,16 +40,14 @@ async function summarizeArticle(
     const header = `[PMID: ${article.pubmedId}](${pmidUrl}) "${article.title}" (${year})`;
 
     if (fidelity === 'aggressive') {
-        return `${header}`; // Title and link only for old research
+        return `${header}`;
     }
 
     if (fidelity === 'balanced' || text.length <= LONG_ARTICLE_THRESHOLD) {
-        const summaryPrompt = fidelity === 'balanced'
-            ? `Summarize this article's key vaccine findings in 2-3 bullets maximum.\n\nTEXT:\n${text}`
-            : `Extract key findings relevant to vaccines/therapeutics from this article.\n\nTEXT:\n${text}`;
+        const summaryPrompt = `Extract key scientific and clinical findings from this article regarding "${medicalTerm}".\n\nTEXT:\n${text}`;
 
         const { content: rawSummary } = await generateLLMResponse([
-            { role: 'system', content: 'You are a biomedical analyst. Provide ONLY clinical bullets. NO preambles or conversational text.' },
+            { role: 'system', content: 'You are a biomedical analyst. Provide ONLY factual clinical bullets. NO preambles or conversational text.' },
             { role: 'user', content: summaryPrompt }
         ], 0.2);
         const summary = stripLLMChatter(rawSummary);
@@ -64,9 +60,8 @@ async function summarizeArticle(
         chunks.push(text.slice(i, i + ARTICLE_CHUNK_SIZE));
     }
 
-    // Process chunks in parallel with a tighter limit for a single article
     const chunkSummaries = await parallelMap(chunks, 3, async (chunk, i) => {
-        const chunkPrompt = `Extract 3-5 factual findings from chunk ${i + 1}/${chunks.length} of the article: ${header}. Focus on efficacy and safety.\n\nTEXT:\n${chunk}`;
+        const chunkPrompt = `Extract key factual findings from chunk ${i + 1}/${chunks.length} of the article regarding "${medicalTerm}": ${header}.\n\nTEXT:\n${chunk}`;
         const { content } = await generateLLMResponse([
             { role: 'system', content: 'You are a clinical researcher. Provide data only.' },
             { role: 'user', content: chunkPrompt }
@@ -84,13 +79,13 @@ async function summarizeArticle(
     return `${header}\n${finalSummary}`;
 }
 
-async function createChunk(pathogenId: string, sourceType: string, sourceId: string, content: string) {
+async function createChunk(medicalTermId: string, sourceType: string, sourceId: string, content: string) {
     try {
         const embedding = await embedText(content.substring(0, 8000));
         const embeddingStr = `[${embedding.join(',')}]`;
         await prisma.$executeRaw`
-            INSERT INTO "KnowledgeChunk" ("id", "pathogenId", "sourceType", "sourceId", "content", "embedding", "createdAt")
-            VALUES (gen_random_uuid(), ${pathogenId}, ${sourceType}, ${sourceId}, ${content}, ${embeddingStr}::vector, NOW())
+            INSERT INTO "KnowledgeChunk" ("id", "medicalTermId", "sourceType", "sourceId", "content", "embedding", "createdAt")
+            VALUES (gen_random_uuid(), ${medicalTermId}, ${sourceType}, ${sourceId}, ${content}, ${embeddingStr}::vector, NOW())
             ON CONFLICT DO NOTHING
         `;
     } catch (err) {
@@ -98,21 +93,17 @@ async function createChunk(pathogenId: string, sourceType: string, sourceId: str
     }
 }
 
-/**
- * Recursive synthesis to compress large amounts of intermediate text.
- */
-async function compressBatchSummaries(pathogenName: string, summaries: string[]): Promise<string[]> {
+async function compressBatchSummaries(medicalTerm: string, summaries: string[]): Promise<string[]> {
     if (summaries.length <= MAX_BATCHES_BEFORE_RECURSION) return summaries;
 
-    console.log(`[RECURSIVE SYNTHESIS] Compressing ${summaries.length} intermediate summaries for ${pathogenName}...`);
+    console.log(`[RECURSIVE SYNTHESIS] Compressing ${summaries.length} intermediate summaries for ${medicalTerm}...`);
     const superBatches: string[][] = [];
     for (let i = 0; i < summaries.length; i += BATCH_SIZE) {
         superBatches.push(summaries.slice(i, i + BATCH_SIZE));
     }
 
-    // Parallelize batch compression
     const results = await parallelMap(superBatches, CONCURRENCY_LIMIT, async (batch) => {
-        const superPrompt = `Consolidate these research summaries into a one-page "Thematic Trend Overview" for ${pathogenName}. Group findings by vaccine pipeline, safety signals, and clinical efficacy.\n\nSUMMARIES:\n${batch.join('\n\n')}`;
+        const superPrompt = `Consolidate these research summaries into a thematic overview for ${medicalTerm}.\n\nSUMMARIES:\n${batch.join('\n\n')}`;
         const { content: batchSummaryResult } = await generateLLMResponse([
             { role: 'system', content: 'You are a head of research. Provide a thematic summary without preambles.' },
             { role: 'user', content: superPrompt }
@@ -120,30 +111,29 @@ async function compressBatchSummaries(pathogenName: string, summaries: string[])
         return stripLLMChatter(batchSummaryResult);
     });
 
-    // Recurse if still too many
-    return compressBatchSummaries(pathogenName, results);
+    return compressBatchSummaries(medicalTerm, results);
 }
 
-export async function synthesizePathogenContext(
-    pathogenId: string,
-    pathogenName: string,
+export async function synthesizeMedicalContext(
+    medicalTermId: string,
+    medicalTerm: string,
     articles: Array<{ id: string; pubmedId: string; title: string; abstractText: string | null; publicationDate?: Date | null }>,
     clinicalTrials: Array<{
         id: string; nctId: string; title: string; phase?: string | null; overallStatus?: string | null;
         sponsor?: string | null; enrollment?: number | null; description?: string | null;
         primaryOutcomes?: string | null; interventionDetails?: string | null;
-        studyDesign?: string | null; startDate?: Date | null; isVaccine?: boolean;
+        studyDesign?: string | null; startDate?: Date | null;
     }>,
     onProgress?: (pct: number, msg: string) => void,
     checkAbort?: () => Promise<void>,
     existingNucleus?: string | null,
     deltaArticles?: any[],
-    deltaTrials?: any[]
+    deltaTrials?: any[],
+    timestamp?: Date
 ): Promise<{
     nucleus: string,
     model: string,
-    epiMetrics: WhoMetric[],
-    alerts: SurveillanceAlert[]
+    sources: any[]
 }> {
     const report = (pct: number, msg: string) => onProgress?.(pct, msg);
     const abort = async () => await checkAbort?.();
@@ -152,19 +142,39 @@ export async function synthesizePathogenContext(
     const itemsToSummarize = isIncremental ? (deltaArticles || []) : articles;
     const trialsToSummarize = isIncremental ? (deltaTrials || []) : clinicalTrials;
 
-    report(2, `${isIncremental ? 'Incremental' : 'Full'} synthesis for ${pathogenName}. Processing ${itemsToSummarize.length} new articles.`);
+    report(2, `${isIncremental ? 'Incremental' : 'Full'} synthesis for ${medicalTerm}. Processing ${itemsToSummarize.length} new articles.`);
+    
+    const sources: any[] = [];
+    let refCounter = 1;
+
+    // Build stable sources list
+    itemsToSummarize.forEach((a: any) => {
+        sources.push({
+            id: a.pubmedId,
+            type: 'article',
+            title: a.title,
+            authors: a.authors,
+            date: a.publicationDate,
+            refIndex: refCounter++
+        });
+    });
+
+    trialsToSummarize.forEach((t: any) => {
+        sources.push({
+            id: t.nctId,
+            type: 'clinical_trial',
+            title: t.title,
+            sponsor: t.sponsor,
+            date: t.startDate,
+            refIndex: refCounter++
+        });
+    });
 
     if (!isIncremental) {
-        await (prisma as any).knowledgeChunk.deleteMany({ where: { pathogenId } });
+        await (prisma as any).knowledgeChunk.deleteMany({ where: { medicalTermId } });
     }
 
-    report(3, `Fetching WHO/CDC updates...`);
-    const [whoMetrics, cdcAlerts] = await Promise.all([
-        fetchWhoMetrics(pathogenName),
-        fetchCdcAlerts(pathogenName)
-    ]);
-
-    // 1. Parallel Article Processing (Only for new/requested items)
+    // 1. Parallel Article Processing
     report(5, `Processing ${itemsToSummarize.length} articles...`);
     const articleSummaries = await parallelMap(itemsToSummarize, CONCURRENCY_LIMIT, async (article, i) => {
         await abort();
@@ -182,19 +192,28 @@ export async function synthesizePathogenContext(
         if (!pubDate || pubDate >= twentyFourMonthsAgo) fidelity = 'high';
         else if (pubDate >= sixtyMonthsAgo) fidelity = 'balanced';
 
-        const summary = await summarizeArticle(pathogenName, article, fidelity);
-        createChunk(pathogenId, 'ARTICLE', article.id, `[PMID:${article.pubmedId}] ${article.title}\n${article.abstractText || ''}`);
+        const summary = await summarizeArticle(medicalTerm, article, fidelity);
+        createChunk(medicalTermId, 'ARTICLE', article.id, `[PMID:${article.pubmedId}] ${article.title}\n${article.abstractText || ''}`);
 
-        return summary;
+        // Find the source and inject the ref index into the summary header
+        const s = sources.find(src => src.id === article.pubmedId);
+        const refLink = s ? `[${s.refIndex}]` : '';
+
+        return `${refLink} ${summary}`;
     });
 
     // 2. Parallel Trial Processing
     report(40, `Processing ${trialsToSummarize.length} clinical trials...`);
     const trialSummaries = await parallelMap(trialsToSummarize, CONCURRENCY_LIMIT, async (t) => {
         const trialUrl = `https://clinicaltrials.gov/study/${t.nctId}`;
-        const trialText = `[NCT: ${t.nctId}](${trialUrl}) ${t.title} (${t.phase}, ${t.overallStatus})`;
-        await createChunk(pathogenId, 'TRIAL', t.id, `${trialText}\nInterventions: ${t.interventionDetails}`);
-        return trialText;
+        const trialText = `Clinical Trial: "${t.title}" (NCT: ${t.nctId}, Phase: ${t.phase}, Status: ${t.overallStatus}, Sponsor: ${t.sponsor}, Enrollment: ${t.enrollment})`;
+        await createChunk(medicalTermId, 'TRIAL', t.id, `${trialText}\nInterventions: ${t.interventionDetails}`);
+        
+        // Inject ref index
+        const s = sources.find(src => src.id === t.nctId);
+        const refLink = s ? `[${s.refIndex}]` : '';
+        
+        return `${refLink} ${trialText}`;
     });
 
     // 3. Batch Article Synthesis
@@ -210,8 +229,8 @@ export async function synthesizePathogenContext(
         report(progressPct, `Summarizing batch ${i + 1}/${batches.length}...`);
 
         const batchPrompt = isIncremental
-            ? `Extract the most significant NEW research findings for "${pathogenName}" from these recent articles. Focus on updates to efficacy or safety.\n\nNEW ARTICLES:\n${batch.join('\n\n')}`
-            : `Synthesize these research papers for "${pathogenName}". Extract the most significant trends in clinical efficacy and safety candidate selection.\n\nARTICLES:\n${batch.join('\n\n')}`;
+            ? `Extract the most significant NEW research findings for "${medicalTerm}" from these recent articles.\n\nNEW ARTICLES:\n${batch.join('\n\n')}`
+            : `Synthesize research findings for "${medicalTerm}". Extract major scientific and clinical trends.\n\nARTICLES:\n${batch.join('\n\n')}`;
         const { content: rawBatchResult } = await generateLLMResponse([
             { role: 'system', content: 'You are a technical analyst. Synthesize findings. Data only.' },
             { role: 'user', content: batchPrompt }
@@ -219,29 +238,46 @@ export async function synthesizePathogenContext(
         return stripLLMChatter(rawBatchResult);
     });
 
-    batchSummaries = await compressBatchSummaries(pathogenName, batchSummaries);
+    batchSummaries = await compressBatchSummaries(medicalTerm, batchSummaries);
 
-    // 4. Final Consolidation / Merging
+    // 4. Final Consolidation / Merging guided by Logical Inquiry
     report(85, `${isIncremental ? 'Merging updates into' : 'Building final'} Knowledge Nucleus...`);
 
-    const trialContext = trialSummaries.slice(0, 20).join('\n');
-    const epiContext = whoMetrics.slice(0, 10).map(m => `${m.location} ${m.year}: ${m.indicator} = ${m.value}`).join('\n');
-    const alertContext = cdcAlerts.slice(0, 5).map(a => `${a.title} (${a.publishedAt.toLocaleDateString()})`).join('\n');
+    // Fetch logical questions to guide synthesis
+    const logicalQuestionModel = (prisma as any).logicalQuestion;
+    if (!logicalQuestionModel) {
+        const keys = Object.keys(prisma).filter(k => !k.startsWith('_'));
+        console.error(`Prisma model 'logicalQuestion' is undefined in synthesis. Available models: ${keys.join(', ')}`);
+        // Fallback to empty if missing to avoid crash, but log error
+    }
+    
+    const logicalQuestions = logicalQuestionModel ? await logicalQuestionModel.findMany({
+        where: { medicalTermId }
+    }) : [];
+    
+    const inquiryContext = logicalQuestions.length > 0
+        ? `LOGICAL INQUIRY (MANDATORY TO ADDRESS):
+${logicalQuestions.map((q: any, i: number) => `${i + 1}. [${q.category}] ${q.question}`).join('\n')}`
+        : "";
 
+    const trialContext = trialSummaries.slice(0, 20).join('\n');
     let consolidationPrompt = "";
 
     if (isIncremental && existingNucleus) {
-        consolidationPrompt = `You are a senior pharmaceutical strategist. 
-I have an existing "Knowledge Nucleus" for ${pathogenName} and I have discovered NEW details from recent ingestion.
+        consolidationPrompt = `You are a senior biomedical research lead. 
+I have an existing "Knowledge Nucleus" for ${medicalTerm} and I have discovered NEW details from recent ingestion.
 
 STRICT INSTRUCTIONS:
 1. UPDATE the existing report below by integrating the NEW FINDINGS.
-2. If new clinical trial results or research findings contradict or advance the existing text, update the section accordingly.
-3. Preserve the general structure (Pipeline, Epidemiology, Safety, Gaps).
-4. Do NOT simply append; perform a NARRATIVE MERGE.
-5. Keep all absolute Markdown links intact.
-6. NO INTRODUCTORY TEXT. Start directly with the updated content.
-7. Maintain Markdown tables for comparisons.
+2. Ensure the updated report addresses the following LOGICAL INQUIRY points if new data allows.
+3. If new clinical trial results or research findings advance the existing text, update the section accordingly.
+4. Preserve the structure (Overview, Research Progress, Clinical Landscape, Strategic Insights).
+5. Do NOT simply append; perform a NARRATIVE MERGE.
+6. Keep all absolute Markdown links intact.
+7. NO INTRODUCTORY TEXT. Start directly with the updated content.
+8. Maintain Markdown tables for comparisons.
+
+${inquiryContext}
 
 EXISTING KNOWLEDGE NUCLEUS:
 ${existingNucleus}
@@ -250,50 +286,89 @@ NEW RESEARCH FINDINGS:
 ${batchSummaries.join('\n\n')}
 
 NEW CLINICAL TRIALS:
-${trialContext}
-
-LATEST EPIDEMIOLOGY (WHO/CDC):
-${epiContext}
-${alertContext}`;
+${trialContext}`;
     } else {
-        consolidationPrompt = `You are the lead intelligence analyst for a vaccine division.
-Create a "Knowledge Nucleus" for ${pathogenName}.
+        consolidationPrompt = `You are a senior biomedical research lead.
+Create a "Knowledge Nucleus" for ${medicalTerm}.
 
-OUTPUT FORMATTING RULES:
-- NO PREAMBLE. Do not say "Okay," or "Here is the report."
-- Start EXACTLY with the header: # ${pathogenName} - Knowledge Nucleus
-- SECOND LINE: *Focused on 2024-2026 literature and ongoing clinical trials*
-- SECTION 1: ## 1. Current Pipeline Status. This section MUST be a Markdown table with columns: [Candidate, Development Stage, Key Mechanism, Primary Indication, Notable Safety/Efficacy Data].
-- SECTION 2: ## 2. Disease Burden & Epidemiology. 
-- SECTION 3: ## 3. Safety & Efficacy Signals.
-- SECTION 4: ## 4. Strategic Intelligence & Gaps.
-- Use absolute Markdown links for citations: [PMID: 123](URL) or [NCT: 123](URL).
+STRICT INSTRUCTIONS:
+1. Every logical question listed below MUST be addressed in the report.
+2. If no data exists for a question in the provided literature, explicitly state that research is currently silent/limited on this specific aspect in the 'Strategic Insights & Research Gaps' section.
+3. OUTPUT FORMATTING RULES:
+   - NO PREAMBLE.
+   - Start EXACTLY with the header: # ${medicalTerm} - Knowledge Nucleus
+   - SECOND LINE: *Focused on recent literature and ongoing clinical trials (PubMed & ClinicalTrials.gov)*
+   - SECTION 1: ## 1. Scientific Overview. High-level summary addressing pathophysiology and mechanism.
+   - SECTION 2: ## 2. Current Clinical Landscape. Markdown table: [Candidate/Intervention, Phase, Status, Mechanism, Key Data].
+   - SECTION 3: ## 3. Core Research Findings. Details on efficacy, safety, and patient outcomes.
+   - SECTION 4: ## 4. Strategic Insights & Research Gaps. Unmet needs and identified gaps based on the inquiry.
+
+${inquiryContext}
 
 LITERATURE TRENDS:
 ${batchSummaries.join('\n\n')}
 
 RECENT CLINICAL TRIALS:
-${trialContext}
-
-EPIDEMIOLOGY & SURVEILLANCE:
-WHO: ${epiContext}
-CDC: ${alertContext}`;
+${trialContext}`;
     }
 
     const { content: rawNucleus, model } = await generateLLMResponse([
-        { role: 'system', content: 'You are an AI specialized in pharmaceutical market intelligence. You provide high-fidelity, data-dense reports without conversational filler.' },
+        { role: 'system', content: 'You are an AI specialized in biomedical intelligence. You provide high-fidelity, data-dense reports without conversational filler.' },
         { role: 'user', content: consolidationPrompt }
     ], 0.2);
 
     const nucleus = stripLLMChatter(rawNucleus);
+    
+    if (!nucleus || nucleus.length < 50) {
+        console.warn(`[SYNTHESIS] Warning: Predicted Knowledge Nucleus for ${medicalTerm} is suspiciously short (${nucleus?.length || 0} chars). Raw start: "${rawNucleus.substring(0, 100)}..."`);
+    } else {
+        console.log(`[SYNTHESIS] Generated Knowledge Nucleus for ${medicalTerm} (${nucleus.length} chars).`);
+    }
+
+    // 5. Answer Individual Logical Questions
+    if (logicalQuestions.length > 0 && logicalQuestionModel) {
+        report(95, `Answering individual investigative questions...`);
+        const answeringPrompt = `Based on the "Knowledge Nucleus" below, providing a concise 1-2 sentence answer for each of the following investigative questions.
+FORMAT: Return a JSON object where keys are the Question IDs and values are the concise answers.
+Example: { "uuid-1": "Answer to question 1", "uuid-2": "Answer to question 2" }
+
+QUESTIONS:
+${logicalQuestions.map((q: any) => `- [ID: ${q.id}] ${q.question}`).join('\n')}
+
+KNOWLEDGE NUCLEUS:
+${nucleus}`;
+
+        const { content: rawAnswers } = await generateLLMResponse([
+            { role: 'system', content: 'You are a precise data extractor. Return JSON ONLY. NO CHATTER.' },
+            { role: 'user', content: answeringPrompt }
+        ], 0.1);
+
+        try {
+            // Find JSON in the response (it might be wrapped in backticks)
+            const jsonMatch = rawAnswers.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const answerMap = JSON.parse(jsonMatch[0]);
+                for (const [qid, answer] of Object.entries(answerMap)) {
+                    // Use raw SQL to bypass stale client
+                    const qUpdatedAt = timestamp || new Date();
+                    await prisma.$executeRaw`
+                        UPDATE "LogicalQuestion" 
+                        SET "answer" = ${answer as string}, "answered" = true, "updatedAt" = ${qUpdatedAt} 
+                        WHERE "id" = ${qid}
+                    `;
+                }
+            }
+        } catch (err) {
+            console.error('Failed to parse or store logical question answers:', err);
+        }
+    }
 
     report(100, `Knowledge Nucleus successfully ${isIncremental ? 'updated' : 'generated'}.`);
 
     return {
         nucleus,
         model,
-        epiMetrics: whoMetrics,
-        alerts: cdcAlerts
+        sources
     };
 }
 

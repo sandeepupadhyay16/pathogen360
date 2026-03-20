@@ -14,7 +14,7 @@ export interface Message {
     pdfReportId?: string;
     sources?: any[];
     visuals?: any;
-    unrecognizedPathogen?: string;
+    unrecognizedMedicalTerm?: string;
     reasoning?: string;
     usage?: {
         prompt_tokens: number;
@@ -29,7 +29,10 @@ export interface Message {
         value: string;
         details?: string;
         metadata?: Record<string, any>;
+        durationMs?: number;
     }>;
+    matchedMedicalTerm?: string;
+    unrecognizedMedicalTerm?: string;
 }
 
 interface ChatMessageProps {
@@ -155,7 +158,7 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
                     {showDiagnostic && (
                         <div className="animate-in slide-in-from-top-1 fade-in duration-200">
                             <DiagnosticFlowchart
-                                pathogenResolution={message.diagnostic?.pathogenResolution || {}}
+                                medicalTermResolution={message.diagnostic?.medicalTermResolution || {}}
                                 routeSelection={message.diagnostic?.routeSelection || {}}
                                 contextAssembly={message.diagnostic?.contextAssembly || {}}
                                 cacheCheck={message.diagnostic?.cacheCheck || {}}

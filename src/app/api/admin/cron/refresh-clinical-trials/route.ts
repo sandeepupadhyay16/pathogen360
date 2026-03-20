@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const secret = searchParams.get('secret');
 
     // Use a simple shared secret — in production, set this as an env variable
-    const CRON_SECRET = process.env.CRON_SECRET || 'pathogen360-cron';
+    const CRON_SECRET = process.env.CRON_SECRET || 'medical360-cron';
 
     if (secret !== CRON_SECRET) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

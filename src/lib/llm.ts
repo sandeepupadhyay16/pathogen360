@@ -1,4 +1,4 @@
-export async function generateLLMResponse(messages: { role: string; content: string }[], temperature: number = 0.7) {
+export async function generateLLMResponse(messages: { role: string; content: string }[], temperature: number = 0.7, maxTokens?: number) {
     const apiKey = process.env.LM_STUDIO_API_KEY || 'google/gemma-3-4b';
     const baseUrl = process.env.LM_STUDIO_BASE_URL || 'http://127.0.0.1:1234/v1';
 
@@ -16,7 +16,7 @@ export async function generateLLMResponse(messages: { role: string; content: str
                 model: process.env.LOCAL_LLM_MODEL || apiKey,
                 messages: messages,
                 temperature: temperature,
-                max_tokens: 4096,
+                max_tokens: maxTokens || 15000,
                 stream: false
             }),
             signal: controller.signal
@@ -59,7 +59,7 @@ export async function generateLLMResponse(messages: { role: string; content: str
                     model: modelName,
                     messages: messages,
                     temperature: temperature,
-                    max_tokens: 2048,
+                    max_tokens: maxTokens || 15000,
                     stream: false
                 })
             });
@@ -86,6 +86,63 @@ export async function generateLLMResponse(messages: { role: string; content: str
             };
         }
     }
+}
+
+export async function streamLLMResponse(messages: { role: string; content: string }[], temperature: number = 0.7, maxTokens?: number) {
+    const apiKey = process.env.LM_STUDIO_API_KEY || 'google/gemma-3-4b';
+    const baseUrl = process.env.LM_STUDIO_BASE_URL || 'http://127.0.0.1:1234/v1';
+    
+    // Attempt local first
+    try {
+        const response = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: process.env.LOCAL_LLM_MODEL || apiKey,
+                messages: messages,
+                temperature: temperature,
+                max_tokens: maxTokens || 15000,
+                stream: true
+            })
+        });
+
+        if (response.ok) return response.body;
+        console.warn("Local streaming failed, falling back to non-stream or cloud...");
+    } catch (e) {
+        console.warn("Local streaming connection error:", e);
+    }
+
+    // Fallback to cloud (NVIDIA) - NVIDIA also supports streaming
+    try {
+        const nvidiaTokens = process.env.NVIDIA_API_KEY;
+        const nvidiaUrl = process.env.NVIDIA_API_BASE_URL || 'https://integrate.api.nvidia.com/v1/chat/completions';
+        
+        if (nvidiaTokens) {
+            const modelName = process.env.CLOUD_LLM_MODEL || "Qwen/Qwen2.5-72B-Instruct";
+            const response = await fetch(nvidiaUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${nvidiaTokens}`
+                },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: messages,
+                    temperature: temperature,
+                    max_tokens: maxTokens || 15000,
+                    stream: true
+                })
+            });
+            if (response.ok) return response.body;
+        }
+    } catch (e) {
+        console.error("Cloud streaming fallback failed:", e);
+    }
+
+    return null;
 }
 
 export async function embedText(text: string): Promise<number[]> {
@@ -153,6 +210,13 @@ export async function embedText(text: string): Promise<number[]> {
     }
 }
 
+export async function generateText(prompt: string, temperature: number = 0.3): Promise<string> {
+    const response = await generateLLMResponse([
+        { role: 'user', content: prompt }
+    ], temperature);
+    return response.content;
+}
+
 export function stripLLMChatter(text: string): string {
     if (!text) return "";
     
@@ -172,12 +236,31 @@ export function stripLLMChatter(text: string): string {
         /^I've analyzed/i,
         /^Synthesis Result:/i,
         /^Assistant:/i,
-        /^User:/i
+        /^User:/i,
+        /^According to the provided context/i,
+        /^The following report/i,
+        /^This synthesis/i,
+        /^Medical 360 Knowledge Nucleus/i,
+        /^Analysis of/i,
+        /^### / // Markdown headers sometimes repeated as preamble
+    ];
+
+    // Remove common conversational postscripts/footers
+    const postscripts = [
+        /I hope this (helps|is useful)/i,
+        /Please let me know if/i,
+        /If you have any (other|further) questions/i,
+        /Let me know if you need/i,
+        /Thank you/i,
+        /Regards,?/i,
+        /Best regards,?/i,
+        /---/ // Common separator for chatter
     ];
 
     let lines = clean.split('\n');
-    let startingIndex = 0;
     
+    // Strip from beginning
+    let startingIndex = 0;
     for (let i = 0; i < Math.min(lines.length, 5); i++) {
         const line = lines[i].trim();
         if (preambles.some(p => p.test(line))) {
@@ -187,5 +270,16 @@ export function stripLLMChatter(text: string): string {
         }
     }
 
-    return lines.slice(startingIndex).join('\n').trim();
+    // Strip from end
+    let endingIndex = lines.length;
+    for (let i = lines.length - 1; i >= Math.max(0, lines.length - 5); i--) {
+        const line = lines[i].trim();
+        if (postscripts.some(p => p.test(line))) {
+            endingIndex = i;
+        } else if (line.length > 0) {
+            break;
+        }
+    }
+
+    return lines.slice(startingIndex, endingIndex).join('\n').trim();
 }

@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { runInContext } from '@/lib/operations';
+import { fetchWithRetry, sleep } from '@/lib/utils';
 
 const CT_API_BASE = 'https://clinicaltrials.gov/api/v2/studies';
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function parseDate(str: string | null | undefined): Date | null {
     if (!str) return null;
@@ -19,44 +19,15 @@ function extractPhase(phases: string[] | null | undefined): string | null {
     return phases.map(p => map[p] || p).join(', ');
 }
 
-function isVaccine(interventions: any[]): boolean {
-    if (!interventions) return false;
-    return interventions.some((i: any) => {
-        const name = (i.name || '').toLowerCase();
-        const type = (i.type || '').toUpperCase();
-        return type === 'BIOLOGICAL' || name.includes('vaccine') || name.includes('immuniz') ||
-            name.includes('mrna') || name.includes('vector') || name.includes('toxoid');
-    });
-}
-
-function formatOutcomes(outcomes: any[] | null | undefined): string | null {
-    if (!outcomes || outcomes.length === 0) return null;
-    return outcomes.map((o: any) => {
-        const measure = o.measure || '';
-        const timeFrame = o.timeFrame ? ` (${o.timeFrame})` : '';
-        const desc = o.description ? `: ${o.description}` : '';
-        return `${measure}${timeFrame}${desc}`;
-    }).join(' | ');
-}
-
-async function fetchTrials(pathogenName: string, limit: number = 50): Promise<any[]> {
+async function fetchTrials(medicalTerm: string, limit: number = 50): Promise<any[]> {
     const url = new URL(CT_API_BASE);
-    url.searchParams.set('query.cond', pathogenName);
+    url.searchParams.set('query.cond', medicalTerm);
     url.searchParams.set('pageSize', limit.toString());
     url.searchParams.set('format', 'json');
-    url.searchParams.set('fields', [
-        'NCTId', 'BriefTitle', 'OfficialTitle', 'Phase', 'OverallStatus',
-        'BriefSummary', 'DetailedDescription', 'EligibilityCriteria',
-        'EnrollmentCount', 'EnrollmentType', 'LeadSponsorName', 'CollaboratorName',
-        'Condition', 'InterventionType', 'InterventionName', 'InterventionDescription',
-        'PrimaryOutcomeMeasure', 'PrimaryOutcomeTimeFrame', 'PrimaryOutcomeDescription',
-        'SecondaryOutcomeMeasure', 'SecondaryOutcomeTimeFrame', 'SecondaryOutcomeDescription',
-        'StudyType', 'DesignAllocation', 'DesignInterventionModel', 'DesignPrimaryPurpose', 'DesignMaskingInfo',
-        'StartDate', 'PrimaryCompletionDate', 'CompletionDate', 'LocationCountry'
-    ].join(','));
+    url.searchParams.set('format', 'json');
+    // Request everything (default) to avoid 400 errors on invalid field names
 
-    const response = await fetch(url.toString());
-    if (response.status === 429) { await sleep(5000); return fetchTrials(pathogenName); }
+    const response = await fetchWithRetry(url.toString());
     if (!response.ok) throw new Error(`CT API ${response.status}`);
     const data = await response.json();
 
@@ -77,52 +48,52 @@ async function fetchTrials(pathogenName: string, limit: number = 50): Promise<an
             phase: extractPhase(design.phases),
             status: status.overallStatus || null,
             overallStatus: status.overallStatus || null,
-            isVaccine: isVaccine(interventions),
             sponsor: sponsors.leadSponsor?.name || null,
             description: descMod.briefSummary || null,
             enrollment: design.enrollmentInfo?.count || null,
             studyDesign: designParts.join(', '),
             startDate: parseDate(status.startDateStruct?.date),
+            interventionDetails: interventions.map((i: any) => `${i.type}: ${i.name}`).join(' | '),
         };
     });
 }
 
-export async function syncTrialsForPathogen(pathogen: { id: string, name: string }, ctx: any, limit: number = 50) {
+export async function syncTrialsForMedicalTerm(medicalTerm: { id: string, name: string }, ctx: any, limit: number = 50) {
     try {
-        const trials = await fetchTrials(pathogen.name, limit);
+        const trials = await fetchTrials(medicalTerm.name, limit);
         let saved = 0;
         for (const trial of trials) {
             try {
-                await (prisma as any).clinicalTrial.upsert({
+                await prisma.clinicalTrial.upsert({
                     where: { nctId: trial.nctId },
-                    update: { ...trial, pathogenId: pathogen.id },
-                    create: { ...trial, pathogenId: pathogen.id },
+                    update: { ...trial, medicalTermId: medicalTerm.id },
+                    create: { ...trial, medicalTermId: medicalTerm.id },
                 });
                 saved++;
             } catch { }
         }
-        await ctx.log(`✓ ${pathogen.name}: ${saved} trials updated.`);
+        await ctx.log(`✓ ${medicalTerm.name}: ${saved} trials updated.`);
         return saved;
     } catch (err: any) {
-        await ctx.log(`✗ ${pathogen.name} trials failed: ${err.message}`, 'WARN');
+        await ctx.log(`✗ ${medicalTerm.name} trials failed: ${err.message}`, 'WARN');
         throw err;
     }
 }
 
 export async function executeTrialsTask(opId: string, params: any) {
-    const { pathogenId } = params;
+    const { medicalTermId } = params;
 
     await runInContext(opId, async (ctx) => {
-        const targets = pathogenId
-            ? await prisma.pathogen.findMany({ where: { id: pathogenId }, select: { id: true, name: true } })
-            : await prisma.pathogen.findMany({ select: { id: true, name: true } });
+        const targets = medicalTermId
+            ? await prisma.medicalTerm.findMany({ where: { id: medicalTermId }, select: { id: true, name: true } })
+            : await prisma.medicalTerm.findMany({ select: { id: true, name: true } });
 
-        await ctx.log(`Refreshing clinical trials for ${targets.length} pathogens...`);
+        await ctx.log(`Refreshing clinical trials for ${targets.length} medical terms...`);
 
         for (let i = 0; i < targets.length; i++) {
-            const pathogen = targets[i];
-            await ctx.progress(Math.floor((i / targets.length) * 100), `Syncing trials for ${pathogen.name}`);
-            await syncTrialsForPathogen(pathogen, ctx);
+            const term = targets[i];
+            await ctx.progress(Math.floor((i / targets.length) * 100), `Syncing trials for ${term.name}`);
+            await syncTrialsForMedicalTerm(term, ctx);
             if (targets.length > 1) await sleep(500); // Throttling
         }
     });

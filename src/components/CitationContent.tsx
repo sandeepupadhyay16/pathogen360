@@ -48,8 +48,8 @@ function RenderingCitation({ refText, refMap, keyPrefix }: { refText: string, re
                         href = `/report/${source.id}`;
                         colorClass = 'text-blue-600 hover:text-blue-800';
                     } else if (source.type === 'trials_summary' || source.type === 'registry_data') {
-                        const pathogenName = source.title.replace('Clinical Trial Summary: ', '');
-                        href = `/search?q=${encodeURIComponent(pathogenName)}`;
+                        const medicalTermName = source.title.replace('Clinical Trial Summary: ', '');
+                        href = `/search?q=${encodeURIComponent(medicalTermName)}`;
                         colorClass = 'text-blue-500 hover:text-blue-700';
                     } else if (source.type === 'alert' || source.type === 'surveillance_alert') {
                         href = source.id; // Alert ID is the URL
@@ -69,6 +69,12 @@ function RenderingCitation({ refText, refMap, keyPrefix }: { refText: string, re
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={`${colorClass} font-bold hover:underline cursor-pointer`}
+                                onClick={(e) => {
+                                    if (href === '#' || href === '') {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }
+                                }}
                             >
                                 {num}
                             </a>
@@ -226,7 +232,16 @@ export default function CitationContent({ content, sources, className = "" }: Ci
                                 {children}
                             </a>
                         );
-                    }
+                    },
+                    // Handle tables specifically for responsive scrolling
+                    table: ({ node, ...props }) => (
+                        <div className="my-6 overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-sm custom-scrollbar">
+                            <table {...props} className="min-w-full divide-y divide-slate-200 text-sm" />
+                        </div>
+                    ),
+                    thead: ({ node, ...props }) => <thead {...props} className="bg-slate-50" />,
+                    th: ({ node, ...props }) => <th {...props} className="min-w-[120px] px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200" />,
+                    td: ({ node, ...props }) => <td {...props} className="min-w-[120px] px-4 py-3 text-slate-700 border-b border-slate-100 align-top" />,
                 }}
             >
                 {processedContent}

@@ -28,23 +28,23 @@ async function fetchWhoIndicator(indicatorCode: string): Promise<any[]> {
 }
 
 /**
- * Fetches epidemiology metrics for a given pathogen.
+ * Fetches epidemiology metrics for a given medical term.
  */
-export async function fetchWhoMetrics(pathogenName: string): Promise<WhoMetric[]> {
+export async function fetchWhoMetrics(medicalTermName: string): Promise<WhoMetric[]> {
     const results: WhoMetric[] = [];
-    const targetPathogen = pathogenName.toLowerCase();
+    const targetMedicalTerm = medicalTermName.toLowerCase();
 
-    // Mapping pathogens to relevant GHO indicators from central config
+    // Mapping medical terms to relevant GHO indicators from central config
     let indicatorCode: string | null = null;
 
     for (const [key, code] of Object.entries(GHO_INDICATORS.MAPPINGS)) {
-        if (targetPathogen.includes(key)) {
+        if (targetMedicalTerm.includes(key)) {
             indicatorCode = code;
             break;
         }
     }
 
-    // If no specific indicator found for this pathogen, return empty results
+    // If no specific indicator found for this term, return empty results
     if (!indicatorCode) {
         return [];
     }

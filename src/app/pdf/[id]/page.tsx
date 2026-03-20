@@ -24,35 +24,14 @@ export default function PdfReport() {
     return (
         <div className="p-10 bg-white text-black max-w-4xl mx-auto print:p-0 print:m-0 print:max-w-none">
             <div className="border-b-4 border-blue-900 pb-6 mb-8 mt-4">
-                <h1 className="text-4xl font-extrabold text-blue-900">Pathogen 360: Market Insights</h1>
-                <h2 className="text-2xl font-bold text-gray-700 mt-2">{report.pathogen.name}</h2>
-                <p className="text-sm text-gray-500 mt-2">Generated on: {new Date(report.createdAt).toLocaleDateString()}</p>
+                <h1 className="text-4xl font-extrabold text-blue-900">Medical 360: Knowledge Nucleus</h1>
+                <h2 className="text-2xl font-bold text-gray-700 mt-2">{report.name}</h2>
+                <p className="text-sm text-gray-500 mt-2">Generated on: {report.synthesisUpdatedAt ? new Date(report.synthesisUpdatedAt).toLocaleDateString() : new Date(report.createdAt).toLocaleDateString()}</p>
             </div>
 
             <div className="space-y-8">
                 <section>
-                    <h3 className="text-xl font-bold bg-gray-100 p-2 border-l-4 border-blue-700 mb-4">Epidemiology & Burden</h3>
-                    <div className="prose max-w-none"><ReactMarkdown>{report.epidemiology || 'No data generated.'}</ReactMarkdown></div>
-                </section>
-
-                <section>
-                    <h3 className="text-xl font-bold bg-gray-100 p-2 border-l-4 border-blue-700 mb-4">Target Population Size</h3>
-                    <div className="prose max-w-none"><ReactMarkdown>{report.populationSize || 'No data generated.'}</ReactMarkdown></div>
-                </section>
-
-                <section>
-                    <h3 className="text-xl font-bold bg-gray-100 p-2 border-l-4 border-blue-700 mb-4">Current Vaccine Landscape</h3>
-                    <div className="prose max-w-none"><ReactMarkdown>{report.vaccineLandscape || 'No data generated.'}</ReactMarkdown></div>
-                </section>
-
-                <section>
-                    <h3 className="text-xl font-bold bg-gray-100 p-2 border-l-4 border-blue-700 mb-4">Market Potential</h3>
-                    <div className="prose max-w-none"><ReactMarkdown>{report.marketPotential || 'No data generated.'}</ReactMarkdown></div>
-                </section>
-
-                <section>
-                    <h3 className="text-xl font-bold bg-gray-100 p-2 border-l-4 border-blue-700 mb-4">Investment Gaps & Opportunities</h3>
-                    <div className="prose max-w-none"><ReactMarkdown>{report.investmentGaps || 'No data generated.'}</ReactMarkdown></div>
+                    <div className="prose max-w-none"><ReactMarkdown>{report.synthesizedContext || 'Knowledge Nucleus data not available. Please run synthesis.'}</ReactMarkdown></div>
                 </section>
             </div>
         </div>

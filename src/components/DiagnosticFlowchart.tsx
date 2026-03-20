@@ -13,10 +13,10 @@ interface Step {
 }
 
 interface DiagnosticFlowchartProps {
-  pathogenResolution: any;
-  routeSelection: any;
-  contextAssembly: any;
-  cacheCheck: any;
+  medicalTermResolution?: any;
+  routeSelection?: any;
+  contextAssembly?: any;
+  cacheCheck?: any;
   tokenUsage?: any;
   routingPath?: Array<{
     stepId: string;
@@ -25,6 +25,7 @@ interface DiagnosticFlowchartProps {
     value: string;
     details?: string;
     metadata?: Record<string, any>;
+    durationMs?: number;
   }>;
   className?: string;
 }
@@ -37,7 +38,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function DiagnosticFlowchart({
-  pathogenResolution,
+  medicalTermResolution,
   routeSelection,
   contextAssembly,
   cacheCheck,

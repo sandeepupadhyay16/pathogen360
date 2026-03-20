@@ -1,14 +1,19 @@
-# Pathogen 360: System Overview & Features
+# Medical 360: System Overview & Features
 
-Pathogen 360 is a state-of-the-art intelligence platform designed for pharmaceutical researchers and public health analysts. It provides a "360-degree view" of viral and bacterial threats by synthesizing data from scientific literature, clinical registries, and global surveillance systems.
+Medical 360 is a state-of-the-art intelligence platform designed for pharmaceutical researchers, clinicians, and medical analysts. It provides a "360-degree view" of medical research—covering pathogens, drugs, diseases, and molecules—by synthesizing data from scientific literature, clinical registries, and global health systems.
 
 ## Core Features
 
-- **Semantic Pathogen Resolution**: An intelligent entry point that resolves natural language queries (e.g., "the flu", "SARS2", "Chikungunya") to canonical database entities using exact, regex, and vector-based matching.
-- **Intelligent Knowledge Nucleus**: A deep-synthesis engine that processes hundreds of research abstracts and clinical trials to generate a concise, high-density "Knowledge Nucleus" for any pathogen.
+- **Semantic Medical Term Resolution**: An intelligent entry point that resolves natural language queries (e.g., "SARS2", "metformin", "Type 2 Diabetes") to canonical database entities using exact, regex, and vector-based matching.
+- **Intelligent Knowledge Nucleus**: Synthesis of clinical trials, PubMed, and epidemiologic data.
+- **Temporal Fidelity Intelligence**: A unique synthesis pathway that prioritizes recent literature (last 24 months) for high-detail reporting while condensing historical research to maintain a focused narrative.
+- **Incremental Knowledge Merging**: Automatically integrates new findings from recent data ingestions into existing Knowledge Nuclei, ensuring reports evolve without losing historical context.
 - **Multi-Modal Research Chat**: A RAG-powered (Retrieval-Augmented Generation) chat interface that intelligently routes queries between fast-cache responses and deep-dive semantic searches.
-- **Automated Market Intelligence**: Generation of comprehensive PDF reports detailing development pipelines, disease burden, and investment gaps.
-- **Aggregated Portfolio Analytics**: Comparison tools that allow users to view trends, clinical trial activity, and outbreak alerts across an entire portfolio of pathogens.
+- **Interactive Research Intelligence**: On-demand deep-dive answering for investigative inquiries with global notification fabric.
+- **Multi-Cluster Ingestion**: Dynamic search expansion and PMID-based deduplication for maximum research coverage.
+- **Conversational RAG**: Context-constrained AI researcher for granular data retrieval.
+- **High-Fidelity PDF Export**: Professional intelligence reports including core synthesis and deep-dive answers.
+- **Automated Research Intelligence**: Generation of comprehensive PDF reports detailing development pipelines, clinical landscapes, and strategic insights.
 
 ## Technical Foundation
 

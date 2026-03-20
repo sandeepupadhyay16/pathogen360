@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import ChartRenderer from '@/components/ChartRenderer';
 import DiagnosticFlowchart from "@/components/DiagnosticFlowchart";
 import ChatMessage, { Message } from '@/components/ChatMessage';
-import { PARAMETERS } from '@/config/parameters';
+import { Search as SearchIcon, MessageSquare, Plus, PenSquare, Trash2, ArrowRight, Brain, CornerDownLeft, Copy, CheckCircle2, RotateCcw, Image as ImageIcon, Map as MapIcon, Stethoscope, Share2, Download, Search, Sparkles } from 'lucide-react';
 
 type Conversation = {
   id: string;
@@ -23,6 +23,13 @@ export default function SearchPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  
+  const [availableTopics, setAvailableTopics] = useState<any[]>([]);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [topicSearchQuery, setTopicSearchQuery] = useState('');
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+  const [suggestingLoading, setSuggestingLoading] = useState(false);
+  
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
@@ -30,7 +37,18 @@ export default function SearchPage() {
   // Fetch all conversations on mount
   useEffect(() => {
     fetchConversations();
+    fetchTopics();
   }, []);
+
+  const fetchTopics = async () => {
+    try {
+      const res = await fetch('/api/reports');
+      const data = await res.json();
+      setAvailableTopics(data || []);
+    } catch (err) {
+      console.error('Failed to fetch topics:', err);
+    }
+  };
 
   // Fetch messages when a conversation is selected
   useEffect(() => {
@@ -44,6 +62,35 @@ export default function SearchPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Fetch suggested questions when exactly one topic is selected
+  useEffect(() => {
+    if (selectedTopics.length === 1) {
+      const topicId = selectedTopics[0];
+      const fetchSuggestedQuestions = async () => {
+        setSuggestingLoading(true);
+        try {
+          const res = await fetch(`/api/admin/medical-term/${topicId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.logicalQuestions) {
+              setSuggestedQuestions(data.logicalQuestions.map((q: any) => q.question));
+            } else {
+              setSuggestedQuestions([]);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch suggested questions:', err);
+          setSuggestedQuestions([]);
+        } finally {
+          setSuggestingLoading(false);
+        }
+      };
+      fetchSuggestedQuestions();
+    } else {
+      setSuggestedQuestions([]);
+    }
+  }, [selectedTopics]);
 
   // Handle outside click for suggestions
   useEffect(() => {
@@ -61,7 +108,9 @@ export default function SearchPage() {
     const timer = setTimeout(async () => {
       if (query.length >= 2 && !loading) {
         try {
-          const res = await fetch(`/api/pathogens/search?q=${encodeURIComponent(query)}`);
+          // Note: Assuming we create /api/medical-terms/search later
+          const res = await fetch(`/api/medical-terms/search?q=${encodeURIComponent(query)}`);
+          if (!res.ok) return;
           const data = await res.json();
           if (data.suggestions) {
             setSuggestions(data.suggestions);
@@ -77,7 +126,7 @@ export default function SearchPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, loading]);
 
   const fetchConversations = async () => {
     try {
@@ -100,6 +149,7 @@ export default function SearchPage() {
           id: m.id,
           role: m.role,
           text: m.content,
+          sources: m.sources,
           reasoning: m.reasoning,
           usage: m.usage,
           routingPath: m.routingPath,
@@ -116,6 +166,7 @@ export default function SearchPage() {
     setCurrentConversationId(null);
     setMessages([]);
     setQuery('');
+    setSelectedTopics([]);
   };
 
   const handleDeleteConversation = (conv: Conversation, e?: React.MouseEvent) => {
@@ -166,25 +217,67 @@ export default function SearchPage() {
         throw new Error(errorData.error || `Server responded with status ${res.status}`);
       }
 
-      const data = await res.json();
-      if (data.conversationId && data.conversationId !== currentConversationId) {
-        setCurrentConversationId(data.conversationId);
-        fetchConversations();
-      }
+      if (!res.body) throw new Error("No response body");
 
-      setMessages(prev => [...prev, {
-        role: 'ai',
-        text: data.answer || "I'm sorry, I couldn't generate a proper response for that query.",
-        sources: data.sources,
-        visuals: data.visuals,
-        matchedPathogen: data.matchedPathogen,
-        unrecognizedPathogen: data.unrecognizedPathogen,
-        reasoning: data.reasoning,
-        usage: data.usage,
-        pdfReportId: data.reportId,
-        diagnostic: data.diagnostic,
-        routingPath: data.routingPath
-      }]);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let aiMessage: Message = { role: 'ai', text: '' };
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+            
+            if (data.type === 'metadata') {
+              if (data.conversationId && data.conversationId !== currentConversationId) {
+                setCurrentConversationId(data.conversationId);
+                fetchConversations();
+              }
+              aiMessage = {
+                ...aiMessage,
+                sources: data.sources,
+                visuals: data.visuals,
+                matchedMedicalTerm: data.matchedMedicalTerm,
+                reasoning: data.reasoning,
+                diagnostic: data.diagnostic,
+                routingPath: data.routingPath
+              };
+            } else if (data.type === 'text') {
+              aiMessage.text += data.content;
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last && last.role === 'ai') {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1] = { ...aiMessage };
+                  return newMessages;
+                } else {
+                  return [...prev, { ...aiMessage }];
+                }
+              });
+            } else if (data.type === 'done') {
+              aiMessage.usage = data.usage;
+              setMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1] = { ...aiMessage };
+                return newMessages;
+              });
+            } else if (data.type === 'error') {
+              throw new Error(data.error);
+            }
+          } catch (e) {
+            console.warn("Error parsing stream chunk:", e, line);
+          }
+        }
+      }
     } catch (error: any) {
       console.error('Search error:', error);
       setMessages(prev => [...prev, { 
@@ -217,20 +310,20 @@ export default function SearchPage() {
     }
   };
 
-  const handleIngest = async (pathogenName: string) => {
+  const handleIngest = async (medicalTerm: string) => {
     setLoading(true);
-    setMessages(prev => [...prev, { role: 'user', text: `Ingest data for ${pathogenName}` }]);
+    setMessages(prev => [...prev, { role: 'user', text: `Research data for ${medicalTerm}` }]);
     try {
       const res = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pathogenName }),
+        body: JSON.stringify({ medicalTerm }),
       });
       const data = await res.json();
-      let responseText = data.message || (data.articlesFetched !== undefined ? `Ingestion complete. Fetched ${data.articlesFetched} articles.` : 'Failed to ingest data.');
+      let responseText = data.message || `Research complete for ${medicalTerm}. Sources analyzed from PubMed and ClinicalTrials.gov.`;
       setMessages(prev => [...prev, { role: 'ai', text: responseText }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'ai', text: 'Error ingesting data.' }]);
+      setMessages(prev => [...prev, { role: 'ai', text: 'Error performing research.' }]);
     }
     setLoading(false);
   };
@@ -245,17 +338,15 @@ export default function SearchPage() {
             onClick={handleNewChat}
             className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition duration-200 shadow-sm"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            New Chat
+            <Plus className="h-5 w-5" />
+            New Research
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-4">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Recent Conversations</h2>
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">History</h2>
           {conversations.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center mt-4">No conversations yet</p>
+            <p className="text-sm text-gray-400 text-center mt-4">No research history</p>
           ) : (
             <div className="space-y-1">
               {conversations.map((conv) => (
@@ -267,11 +358,10 @@ export default function SearchPage() {
                   <div className="truncate text-sm font-medium mr-2 flex-1">{conv.title}</div>
                   <button
                     onClick={(e) => handleDeleteConversation(conv, e)}
+                    title="Delete conversation"
                     className={`p-1.5 rounded hover:bg-red-500 hover:text-white transition ${currentConversationId === conv.id ? 'text-blue-200 hover:text-white hover:bg-blue-500' : 'text-gray-400'}`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               ))}
@@ -287,14 +377,111 @@ export default function SearchPage() {
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center mt-10">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mb-6 shadow-sm border border-blue-100">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
+                  <Brain className="h-10 w-10" />
                 </div>
-                <h2 className="text-3xl font-extrabold text-gray-800 mb-3 tracking-tight">How can I help you today?</h2>
-                <p className="text-gray-500 max-w-xl text-lg leading-relaxed">
-                  I can help you research pathogens using my knowledge base. Knowledgebase is built using Pubmed, Clinicaltrials.gov, WHO, and CDC Alerts.
+                <h2 className="text-3xl font-extrabold text-gray-800 mb-3 tracking-tight">How can I assist your research?</h2>
+                <p className="text-gray-500 max-w-xl text-lg leading-relaxed mb-8">
+                  I synthesize medical intelligence from PubMed and ClinicalTrials.gov. Ask me about drugs, diseases, molecular biology, or clinical states.
                 </p>
+
+                {availableTopics.length > 0 && (
+                  <div className="w-full max-w-2xl bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-left">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Available Intelligence Topics</h3>
+                      {selectedTopics.length > 1 && (
+                        <button
+                          onClick={() => {
+                            const topicNames = selectedTopics.map(id => availableTopics.find(t => t.id === id)?.name).filter(Boolean);
+                            const q = `Compare and correlate the clinical data for ${topicNames.join(' and ')} highlighting any cross-entity insights.`;
+                            setQuery(q);
+                          }}
+                          className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg transition-colors"
+                        >
+                          Compare Selected ({selectedTopics.length})
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="relative mb-4">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        placeholder="Search for drugs, diseases, or targets..."
+                        value={topicSearchQuery}
+                        onChange={(e) => setTopicSearchQuery(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {availableTopics.filter(t => t.name.toLowerCase().includes(topicSearchQuery.toLowerCase())).map(t => {
+                        const isSelected = selectedTopics.includes(t.id);
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => {
+                              setSelectedTopics(prev => 
+                                prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                              );
+                            }}
+                            className={`px-3 py-1.5 text-sm rounded-xl border transition-all ${
+                              isSelected 
+                                ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm' 
+                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300'
+                            }`}
+                          >
+                            {t.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedTopics.length === 1 && (
+                      <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Brain className="h-3.5 w-3.5 text-blue-500" />
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Knowledge Nucleus: Suggested Interrogations</h4>
+                        </div>
+                        
+                        {suggestingLoading ? (
+                          <div className="space-y-3 animate-pulse">
+                            {[1, 2, 3].map(i => (
+                              <div key={i} className="flex gap-3 items-start">
+                                <div className="h-8 w-8 bg-slate-100 rounded-full flex-shrink-0" />
+                                <div className="h-10 w-full bg-slate-50 rounded-2xl rounded-tl-none" />
+                              </div>
+                            ))}
+                          </div>
+                        ) : suggestedQuestions.length > 0 ? (
+                          <div className="max-h-72 overflow-y-auto pr-3 space-y-3 custom-scrollbar">
+                            {suggestedQuestions.map((question, i) => (
+                              <div key={i} className="flex gap-3 items-start group/q">
+                                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 border border-blue-100 group-hover/q:bg-blue-100 transition-colors">
+                                  <Sparkles className="w-4 h-4 text-blue-500" />
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setQuery(question);
+                                    const searchInput = document.querySelector('input[type="search"]') as HTMLInputElement;
+                                    if (searchInput) searchInput.focus();
+                                  }}
+                                  className="flex-1 text-left px-4 py-3 bg-white hover:bg-blue-50 border border-slate-100 hover:border-blue-200 text-slate-700 hover:text-blue-800 text-sm font-semibold rounded-2xl rounded-tl-none transition-all shadow-sm hover:shadow-md"
+                                >
+                                  {question}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-400 italic">No pre-defined questions found for this topic. Try asking your own!</p>
+                        )}
+                        
+                        <p className="text-[10px] text-gray-400 mt-4 italic font-medium">Select another topic to compare, or click a suggestion above to ask about {availableTopics.find(t => t.id === selectedTopics[0])?.name}.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               messages.map((msg, i) => (
@@ -302,20 +489,20 @@ export default function SearchPage() {
                   <ChatMessage message={msg} />
                   {!msg.role.includes('user') && msg.visuals && (
                     <div className="max-w-3xl mx-auto">
-                      <ChartRenderer visuals={msg.visuals} pathogenName={msg.matchedPathogen} />
+                      <ChartRenderer visuals={msg.visuals} medicalTermName={msg.matchedMedicalTerm || ''} />
                     </div>
                   )}
-                  {msg.unrecognizedPathogen && (
+                  {msg.unrecognizedMedicalTerm && (
                     <div className="max-w-[85%] ml-0 mr-auto p-4 bg-orange-50 border border-orange-100 rounded-xl rounded-tl-none">
                       <p className="text-sm font-medium text-orange-900 mb-3">
-                        I noticed you're asking about <span className="font-bold">{msg.unrecognizedPathogen}</span>, which isn't in our database yet.
+                        I noticed you're asking about <span className="font-bold">{msg.unrecognizedMedicalTerm}</span>, which isn't in our nucleus yet.
                       </p>
                       <button
-                        onClick={() => handleIngest(msg.unrecognizedPathogen!)}
+                        onClick={() => handleIngest(msg.unrecognizedMedicalTerm!)}
                         disabled={loading}
                         className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2 px-5 rounded-lg transition disabled:opacity-50 shadow-sm"
                       >
-                        Onboard {msg.unrecognizedPathogen} Now
+                        Research {msg.unrecognizedMedicalTerm}
                       </button>
                     </div>
                   )}
@@ -325,10 +512,8 @@ export default function SearchPage() {
                         onClick={() => window.open(`/pdf/${msg.pdfReportId}`, '_blank')}
                         className="flex items-center gap-2 text-white bg-red-500 hover:bg-red-600 px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-sm"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" />
-                        </svg>
-                        Download PDF Report
+                        <Download className="h-5 w-5" />
+                        Download Research Report
                       </button>
                     </div>
                   )}
@@ -366,17 +551,15 @@ export default function SearchPage() {
                       className={`px-4 py-3 cursor-pointer flex items-center justify-between transition ${i === activeSuggestionIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${s.type === 'Family' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
-                          {s.type === 'Family' ? 'F' : 'P'}
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${s.type === 'Category' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                          {s.type === 'Category' ? 'C' : 'T'}
                         </span>
                         <div>
                           <div className="font-semibold text-sm">{s.label}</div>
-                          {s.type === 'Family' && <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Taxonomic Family</div>}
+                          {s.type === 'Category' && <div className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Medical Category</div>}
                         </div>
                       </div>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
+                      <ArrowRight className="h-4 w-4 text-gray-300" />
                     </div>
                   ))}
                 </div>
@@ -387,7 +570,8 @@ export default function SearchPage() {
               <input
                 type="search"
                 className="block w-full p-4 pl-6 pr-14 text-base text-gray-900 border border-gray-200/60 rounded-[2rem] bg-white shadow-lg shadow-gray-200/50 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:outline-none placeholder-gray-400 transition-all duration-300"
-                placeholder="Ask the AI Research Agent..."
+                placeholder="Ask Research Intelligence..."
+                title="Search research intelligence"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -398,14 +582,13 @@ export default function SearchPage() {
               <button
                 type="submit"
                 disabled={loading || !query.trim()}
+                title="Send query"
                 className="absolute right-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed shadow-sm group-focus-within:bg-blue-600"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-0.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                </svg>
+                <Sparkles className="h-5 w-5 ml-0.5" />
               </button>
             </form>
-            <div className="text-center mt-3 text-xs text-gray-400 font-medium tracking-wide">AI Research Agent can construct reports and answer questions about specific pathogens.</div>
+            <div className="text-center mt-3 text-xs text-gray-400 font-medium tracking-wide">Research Intelligence synthesizes data from PubMed and ClinicalTrials.gov.</div>
           </div>
         </div>
       </div>

@@ -1,0 +1,36 @@
+.next/types/validator.ts(314,39): error TS2307: Cannot find module '../../src/app/api/medical-terms-old/search/route.js' or its corresponding type declarations.
+.next/types/validator.ts(323,39): error TS2307: Cannot find module '../../src/app/api/medical-terms-old/synthesized/route.js' or its corresponding type declarations.
+src/app/admin/page.tsx(813,52): error TS2304: Cannot find name 'setPathogenToDelete'.
+src/app/api/admin/backfill-families/route.ts(12,34): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/backfill-families/route.ts(13,32): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/backfill-families/route.ts(25,48): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/backfill-families/route.ts(51,25): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/backfill-families/route.ts(51,63): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/backfill-families/route.ts(56,38): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/app/api/admin/bulk-ingest/route.ts(110,21): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/bulk-ingest/route.ts(110,59): error TS18047: 'family' is possibly 'null'.
+src/app/api/admin/bulk-ingest/route.ts(138,33): error TS2353: Object literal may only specify known properties, and 'pubmedId_pathogenId' does not exist in type 'ArticleWhereUniqueInput'.
+src/app/api/admin/bulk-ingest/route.ts(140,49): error TS2552: Cannot find name 'pathogen'. Did you mean 'pathogenId'?
+src/app/api/admin/bulk-ingest/route.ts(161,33): error TS2353: Object literal may only specify known properties, and 'pathogenId' does not exist in type '(Without<ArticleCreateInput, ArticleUncheckedCreateInput> & ArticleUncheckedCreateInput) | (Without<...> & ArticleCreateInput)'.
+src/app/api/admin/bulk-ingest/route.ts(161,45): error TS2552: Cannot find name 'pathogen'. Did you mean 'pathogenId'?
+src/app/api/chat/route.ts(4,10): error TS2305: Module '"@/lib/context"' has no exported member 'buildPathogenContext'.
+src/app/api/chat/route.ts(4,32): error TS2724: '"@/lib/context"' has no exported member named 'buildAggregateContext'. Did you mean 'buildAggregateMedicalContext'?
+src/app/api/chat/route.ts(5,10): error TS2300: Duplicate identifier 'findSemanticCache'.
+src/app/api/chat/route.ts(5,29): error TS2300: Duplicate identifier 'storeSemanticCache'.
+src/app/api/chat/route.ts(5,49): error TS2300: Duplicate identifier 'searchKnowledgeChunks'.
+src/app/api/chat/route.ts(6,10): error TS2300: Duplicate identifier 'findSemanticCache'.
+src/app/api/chat/route.ts(6,29): error TS2300: Duplicate identifier 'storeSemanticCache'.
+src/app/api/chat/route.ts(6,49): error TS2300: Duplicate identifier 'searchKnowledgeChunks'.
+src/app/api/chat/route.ts(7,10): error TS2305: Module '"@/lib/pathogen-resolver"' has no exported member 'pathogenResolver'.
+src/app/api/chat/route.ts(146,87): error TS7006: Parameter 'word' implicitly has an 'any' type.
+src/app/api/chat/route.ts(231,20): error TS2339: Property 'family' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/chat/route.ts(232,20): error TS2339: Property 'taxonomy' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/chat/route.ts(249,50): error TS2339: Property 'family' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/chat/route.ts(249,62): error TS2339: Property 'taxonomy' does not exist on type '{ articles: { id: string; pubmedId: string; pmcId: string | null; hasFullText: boolean; title: string; abstractText: string | null; authors: string | null; publicationDate: Date | null; countryAffiliations: string | null; medicalTermId: string; createdAt: Date; }[]; clinicalTrials: { ...; }[]; metrics: { ...; }[]; s...'.
+src/app/api/report/route.ts(2,39): error TS2307: Cannot find module '@/lib/report-service' or its corresponding type declarations.
+src/lib/tasks/health.ts(16,20): error TS2339: Property 'epidemiologyMetric' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/tasks/health.ts(17,20): error TS2339: Property 'epidemiologyMetric' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/lib/tasks/health.ts(18,38): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/lib/tasks/health.ts(20,60): error TS2353: Object literal may only specify known properties, and 'pathogenId' does not exist in type 'SurveillanceAlertWhereInput'.
+src/lib/tasks/health.ts(22,37): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/lib/tasks/health.ts(35,40): error TS2339: Property 'pathogen' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.

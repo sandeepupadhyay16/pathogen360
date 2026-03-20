@@ -7,8 +7,8 @@
 export const PARAMETERS = {
     DATA_FETCHING: {
         MAX_ARTICLES: 50,
-        MAX_TRIALS: 100,
-        MAX_EPI_METRICS: 20,
+        MAX_TRIALS: 30,
+        MAX_EPI_METRICS: 100,
         MAX_SURVEILLANCE_ALERTS: 20,
         DEFAULT_PUBMED_LIMIT: 50,
         DEFAULT_CLINICAL_TRIALS_LIMIT: 50,
@@ -28,7 +28,7 @@ export const PARAMETERS = {
         }
     },
     UI: {
-        DEFAULT_EXAMPLE_PATHOGENS: [
+        DEFAULT_EXAMPLE_TERMS: [
             "SARS-CoV-2",
             "Mpox Virus",
             "Acinetobacter baumannii",

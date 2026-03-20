@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { all } = body;
-        const operation = await createOperation('SYNTHESIZE', all ? 'All Pathogens' : 'Selected', body);
+        const operation = await createOperation('SYNTHESIZE', all ? 'All Medical Terms' : 'Selected', body);
 
         executeSynthesizeTask(operation.id, body).catch(err => {
             console.error(`Synthesis Operation ${operation.id} failed:`, err);

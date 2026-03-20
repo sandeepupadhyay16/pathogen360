@@ -19,6 +19,9 @@ async function checkData() {
         `);
         console.log("Message Table Columns:", columns.rows.map(r => r.column_name));
 
+        const medicalTermCount = await client.query('SELECT COUNT(*) FROM "MedicalTerm"');
+        console.log("MedicalTerm Count:", medicalTermCount.rows[0].count);
+
         const pathogens = await client.query('SELECT name FROM "Pathogen" LIMIT 5');
         console.log("Some Pathogens:", pathogens.rows.map(r => r.name));
 

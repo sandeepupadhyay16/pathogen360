@@ -21,7 +21,7 @@ export const downloadReportAsPdf = async (reportId: string) => {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(20);
         doc.setTextColor(30, 58, 138); // blue-900
-        doc.text('Pathogen 360: Market Analysis', margin, 20);
+        doc.text('Medical 360: Analysis Report', margin, 20);
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
@@ -33,55 +33,25 @@ export const downloadReportAsPdf = async (reportId: string) => {
         // --- Report Title ---
         doc.setFontSize(18);
         doc.setTextColor(15, 23, 42); // slate-900
-        doc.text(`Target: ${report.pathogen.name}`, margin, y);
+        doc.text(`Target: ${report.name}`, margin, y);
         y += 15;
 
-        const sections = [
-            { title: 'Taxonomy & Biology', content: report.pathogen.taxonomy || report.pathogen.biology || report.taxonomy },
-            { title: 'Epidemiology', content: report.epidemiology },
-            { title: 'Target Population', content: report.populationSize },
-            { title: 'Vaccine Landscape', content: report.vaccineLandscape },
-            { title: 'Market Potential & Gaps', content: report.marketPotential }
-        ];
+        // Section Content
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(51, 65, 85); // slate-700
 
-        sections.forEach((s) => {
-            // Check for page break before section header
-            if (y > 260) {
+        const textContent = report.synthesizedContext || 'Knowledge Nucleus data not available. Please run synthesis.';
+        const lines = doc.splitTextToSize(textContent, contentWidth);
+
+        // Handle multi-page text content
+        lines.forEach((line: string) => {
+            if (y > 280) {
                 doc.addPage();
                 y = 20;
             }
-
-            // Section Header
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(13);
-            doc.setTextColor(37, 99, 235); // blue-600
-            doc.text(s.title.toUpperCase(), margin, y);
-            y += 7;
-
-            // Horizontal line
-            doc.setDrawColor(226, 232, 240);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 8;
-
-            // Section Content
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.setTextColor(51, 65, 85); // slate-700
-
-            const textContent = s.content || 'Data not available for this segment.';
-            const lines = doc.splitTextToSize(textContent, contentWidth);
-
-            // Handle multi-page text content
-            lines.forEach((line: string) => {
-                if (y > 280) {
-                    doc.addPage();
-                    y = 20;
-                }
-                doc.text(line, margin, y);
-                y += 5.5;
-            });
-
-            y += 10; // Space between sections
+            doc.text(line, margin, y);
+            y += 5.5;
         });
 
         // --- Footer ---
@@ -98,7 +68,7 @@ export const downloadReportAsPdf = async (reportId: string) => {
             );
         }
 
-        doc.save(`Pathogen360_Report_${report.pathogen.name.replace(/\s+/g, '_')}.pdf`);
+        doc.save(`Medical360_Report_${report.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
         console.error('PDF Generation Error:', error);
         throw error;

@@ -8,12 +8,12 @@ import {
 
 interface ChartRendererProps {
   visuals: any;
-  pathogenName?: string;
+  medicalTermName?: string;
 }
 
 const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#6366F1'];
 
-export const ChartRenderer: React.FC<ChartRendererProps> = ({ visuals, pathogenName }) => {
+export const ChartRenderer: React.FC<ChartRendererProps> = ({ visuals, medicalTermName }) => {
   if (!visuals) return null;
 
   return (
@@ -23,7 +23,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ visuals, pathogenN
         <div className="bg-white p-6 rounded-xl border border-blue-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-              {visuals.epiVisuals.title || `Epidemiology: ${pathogenName || 'Pathogen'}`}
+              {visuals.epiVisuals.title || `Epidemiology: ${medicalTermName || 'Medical Term'}`}
             </h4>
             <span className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-semibold rounded uppercase">Historical Metrics</span>
           </div>

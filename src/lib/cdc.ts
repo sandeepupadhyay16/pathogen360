@@ -15,17 +15,17 @@ export interface SurveillanceAlert {
 }
 
 /**
- * Fetches recent MMWR alerts for a specific pathogen.
+ * Fetches recent MMWR alerts for a specific medical term.
  */
-export async function fetchCdcAlerts(pathogenName: string): Promise<SurveillanceAlert[]> {
+export async function fetchCdcAlerts(medicalTermName: string): Promise<SurveillanceAlert[]> {
     try {
         // Strip common suffixes to improve search results
-        const searchTerm = pathogenName.toLowerCase()
+        const searchTerm = medicalTermName.toLowerCase()
             .replace(/\s+virus$/i, '')
             .replace(/\s+bacteria$/i, '')
             .replace(/\s+pathogen$/i, '');
 
-        // Search metadata for pathogen name in title
+        // Search metadata for medical term name in title
         const query = `$where=lower(title) like '%25${searchTerm}%25'`;
         const url = `${MMWR_METADATA_URL}?${query}&$limit=10&$order=dl_year_mo desc`;
 

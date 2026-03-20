@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import NotificationSystem from "@/components/NotificationSystem";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pathogen 360",
-  description: "Advanced pathogen research and analysis platform",
+  title: "Medical 360",
+  description: "Comprehensive medical research and intelligence platform",
 };
 
 export default function RootLayout({
@@ -32,12 +33,12 @@ export default function RootLayout({
             <div className="flex justify-between h-16">
               <div className="flex">
                 <div className="flex-shrink-0 flex items-center">
-                  <span className="font-bold text-xl text-blue-900 tracking-tight">Pathogen 360</span>
+                  <span className="font-bold text-xl text-blue-900 tracking-tight">Medical 360</span>
                 </div>
                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                  <a href="/" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Pathogen Library</a>
-                  <a href="/search" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">AI Research Agent</a>
-                  <a href="/admin" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Admin Interface</a>
+                  <a href="/" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Medical Library</a>
+                  <a href="/search" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Research Intelligence</a>
+                  <a href="/admin" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Admin Dashboard</a>
                 </div>
               </div>
             </div>
@@ -46,6 +47,7 @@ export default function RootLayout({
         <main className="pt-16">
           {children}
         </main>
+        <NotificationSystem />
       </body>
     </html>
   );

@@ -3,13 +3,17 @@ import { prisma } from '@/lib/prisma';
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
 
-        await prisma.marketReport.delete({
-            where: { id }
+        await prisma.medicalTerm.update({
+            where: { id },
+            data: {
+                synthesizedContext: null,
+                synthesisUpdatedAt: null
+            }
         });
 
         return NextResponse.json({ success: true, message: 'Report deleted successfully.' });
